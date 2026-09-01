@@ -1,0 +1,1527 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HR-Reifegrad-Check mit Vertiefung</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  /* Design-System "Verdant Stillness" */
+  --ground:#F3F6F3; --surface:#FFFFFF; --surface-2:#E8EFEA;
+  --ink:#484848; --ink-2:#5F7386; --ink-3:#828282;
+  --line:#DEE6E0; --line-strong:#C6D2C9;
+  --accent:#61876E; --accent-soft:#DAE9E0;
+  /* Rose: erscheint einmal, wo etwas Menschliches benannt wird (engster Punkt / Hinweise) */
+  --signal:#8C5A59; --signal-soft:#F4ECEC; --signal-line:#D8C3C2;
+  /* Ampel-Zonen: rot -> ocker -> hellsage -> Sage (bestes) */
+  --s1:#B25B4A; --s2:#CD9A5B; --s3:#9DB8A6; --s4:#61876E;
+  --focus:#61876E;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0F1311; --surface:#161C18; --surface-2:#1F2620;
+    --ink:#E6ECE7; --ink-2:#9DB0A4; --ink-3:#7F8A82;
+    --line:#28322B; --line-strong:#3B473E;
+    --accent:#8FB39C; --accent-soft:#1B241E;
+    --signal:#C79A99; --signal-soft:#241A1A; --signal-line:#4A3736;
+    --s1:#C4715F; --s2:#D8B172; --s3:#7FA890; --s4:#A9C7B4;
+    --focus:#8FB39C;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0F1311; --surface:#161C18; --surface-2:#1F2620;
+  --ink:#E6ECE7; --ink-2:#9DB0A4; --ink-3:#7F8A82;
+  --line:#28322B; --line-strong:#3B473E;
+  --accent:#8FB39C; --accent-soft:#1B241E;
+  --signal:#C79A99; --signal-soft:#241A1A; --signal-line:#4A3736;
+  --s1:#C4715F; --s2:#D8B172; --s3:#7FA890; --s4:#A9C7B4;
+  --focus:#8FB39C;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:"Work Sans","Helvetica Neue",Arial,sans-serif;
+  font-size:16px; line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:760px; margin:0 auto; padding:40px 20px 72px;}
+
+.eyebrow{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:11.5px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--ink-3); margin:0 0 10px;
+}
+h1{
+  font-size:clamp(28px,4.4vw,40px); line-height:1.12; font-weight:700;
+  letter-spacing:-.015em; margin:0 0 12px; text-wrap:balance;
+}
+.lede{
+  font-family:"Source Serif 4",Georgia,serif; font-size:17.5px;
+  color:var(--ink-2); margin:0 0 20px; max-width:60ch;
+}
+.meta{
+  display:flex; flex-wrap:wrap; gap:6px 14px;
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:12px; color:var(--ink-3); margin:0 0 28px;
+}
+.meta span{white-space:nowrap}
+
+.topbar{display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:26px;}
+.langtoggle{display:flex; border:1px solid var(--line-strong); border-radius:999px; overflow:hidden; flex:none;}
+.langtoggle button{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px; letter-spacing:.08em;
+  background:transparent; color:var(--ink-3); border:0; padding:6px 12px; cursor:pointer;
+}
+.langtoggle button[aria-pressed="true"]{background:var(--accent); color:var(--ground);}
+
+/* progress rail: one segment per dimension */
+.rail{display:grid; grid-template-columns:repeat(6,1fr); gap:4px; margin:0 0 8px; padding:0; list-style:none;}
+.rail li{height:4px; background:var(--line); border-radius:2px;}
+.rail li[data-state="done"]{background:var(--s3);}
+.rail li[data-state="current"]{background:var(--accent);}
+.railmeta{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px;
+  color:var(--ink-3); letter-spacing:.06em; margin:0 0 26px;
+}
+
+.card{
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:6px; padding:26px 24px;
+}
+.dimhead{margin:0 0 4px; font-size:22px; font-weight:700; letter-spacing:-.01em;}
+.dimintro{font-family:"Source Serif 4",Georgia,serif; color:var(--ink-2); margin:0 0 24px; font-size:16.5px;}
+
+fieldset{border:0; padding:0; margin:0 0 26px;}
+fieldset:last-of-type{margin-bottom:8px;}
+legend{
+  font-size:16.5px; font-weight:500; line-height:1.45; padding:0;
+  margin-bottom:12px; color:var(--ink); max-width:62ch;
+}
+legend .qno{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:12px;
+  color:var(--ink-3); margin-right:8px;
+}
+.opts{display:grid; grid-template-columns:repeat(4,1fr); gap:6px;}
+@media (max-width:560px){ .opts{grid-template-columns:1fr;} }
+.opt{position:relative;}
+.opt input{position:absolute; opacity:0; width:100%; height:100%; margin:0; cursor:pointer;}
+.opt span{
+  display:block; padding:11px 12px; border:1px solid var(--line-strong);
+  border-radius:4px; font-size:13.5px; line-height:1.3; color:var(--ink-2);
+  background:var(--surface); cursor:pointer; transition:border-color .12s, background .12s, color .12s;
+  min-height:100%;
+}
+.opt input:hover + span{border-color:var(--accent);}
+.opt input:focus-visible + span{outline:2px solid var(--focus); outline-offset:2px;}
+.opt input:checked + span{background:var(--accent); border-color:var(--accent); color:var(--ground); font-weight:500;}
+
+.nav{display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:26px;}
+.btn{
+  font-family:"Work Sans",sans-serif; font-size:15px; font-weight:600;
+  padding:12px 22px; border-radius:4px; border:1px solid var(--accent);
+  background:var(--accent); color:var(--ground); cursor:pointer; transition:opacity .12s;
+}
+.btn:hover{opacity:.88}
+.btn:focus-visible{outline:2px solid var(--focus); outline-offset:3px;}
+.btn[disabled]{opacity:.4; cursor:not-allowed;}
+.btn-ghost{background:transparent; color:var(--ink-2); border-color:var(--line-strong);}
+.btn-ghost:hover{color:var(--ink); border-color:var(--ink-3); opacity:1;}
+.hint{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px; color:var(--ink-3);}
+
+/* lead step */
+.fields{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:22px 0 6px;}
+@media (max-width:560px){ .fields{grid-template-columns:1fr;} }
+.field{display:flex; flex-direction:column; gap:5px;}
+.field.full{grid-column:1/-1;}
+.field label{font-size:13px; font-weight:500; color:var(--ink-2);}
+.field input, .field select{
+  font-family:"Work Sans",sans-serif; font-size:15px; color:var(--ink);
+  background:var(--surface); border:1px solid var(--line-strong);
+  border-radius:4px; padding:10px 11px;
+}
+.field input:focus-visible, .field select:focus-visible{outline:2px solid var(--focus); outline-offset:1px;}
+.consent{display:flex; gap:10px; align-items:flex-start; margin:14px 0 0; padding:12px 13px;
+  border:1px solid var(--line); border-radius:4px; background:var(--surface-2);
+  font-size:13.5px; color:var(--ink-2); line-height:1.45; cursor:pointer;}
+.consent input{margin-top:2px; flex:none; width:17px; height:17px; accent-color:var(--accent); cursor:pointer;}
+.consent.invalid{border-color:var(--signal); background:var(--signal-soft);}
+.field input.invalid, .field select.invalid{border-color:var(--signal); border-width:2px;}
+.req{color:var(--signal); margin-left:3px;}
+.err{color:var(--signal); font-size:14px; font-weight:500; margin:14px 0 0; min-height:1.2em;}
+.err:not(:empty){padding-left:14px; border-left:2px solid var(--signal);}
+
+/* results */
+.verdict{
+  border:1px solid var(--line); border-radius:6px; background:var(--surface);
+  padding:28px 24px; margin-bottom:16px;
+}
+.stagechip{
+  display:inline-flex; align-items:center; gap:9px;
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3); margin-bottom:12px;
+}
+.stagedots{display:inline-flex; gap:3px;}
+.stagedots i{width:16px; height:5px; border-radius:2px; background:var(--line); display:block;}
+.stagedots i.on{background:var(--accent);}
+.verdict h2{font-size:clamp(24px,3.6vw,32px); font-weight:700; letter-spacing:-.015em; margin:0 0 10px;}
+.verdict p{font-family:"Source Serif 4",Georgia,serif; font-size:17px; color:var(--ink-2); margin:0 0 12px; max-width:62ch;}
+.verdict p:last-child{margin-bottom:0;}
+
+.section-label{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3);
+  margin:32px 0 12px;
+}
+.profile{border:1px solid var(--line); border-radius:6px; background:var(--surface); overflow:hidden;}
+.prow{
+  display:grid; grid-template-columns:1fr 180px 76px; gap:14px; align-items:center;
+  padding:14px 18px; border-bottom:1px solid var(--line);
+}
+.prow:last-child{border-bottom:0;}
+.prow.weak{background:var(--signal-soft);}
+@media (max-width:560px){
+  .prow{grid-template-columns:1fr 76px; gap:6px 12px;}
+  .meter{grid-column:1/-1;}
+}
+.pname{font-size:14.5px; font-weight:500;}
+.pname .tag{
+  display:inline-block; margin-left:8px; padding:1px 7px; border-radius:3px;
+  border:1px solid var(--signal-line); background:var(--surface);
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:10px;
+  letter-spacing:.08em; text-transform:uppercase; color:var(--signal); vertical-align:1px;
+}
+.meter{display:grid; grid-template-columns:repeat(4,1fr); gap:2px;}
+.meter i{height:9px; border-radius:2px; background:var(--surface-2); display:block;}
+.pscore{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:13px;
+  font-variant-numeric:tabular-nums; color:var(--ink-2); text-align:right; white-space:nowrap;
+}
+
+.notes{display:grid; gap:14px; margin-top:14px;}
+.note{border-left:2px solid var(--line-strong); padding:2px 0 2px 16px;}
+.note.weak{border-left-color:var(--signal);}
+.note h3{font-size:14.5px; font-weight:600; margin:0 0 4px;}
+.note p{font-family:"Source Serif 4",Georgia,serif; font-size:16px; color:var(--ink-2); margin:0; max-width:62ch;}
+
+.gap{
+  border:1px solid var(--signal-line); background:var(--signal-soft);
+  border-radius:6px; padding:22px 22px; margin-top:28px;
+}
+.gap .section-label{margin:0 0 8px; color:var(--signal);}
+.gap h3{font-size:19px; font-weight:700; margin:0 0 8px;}
+.gap p{font-family:"Source Serif 4",Georgia,serif; font-size:16.5px; color:var(--ink-2); margin:0; max-width:62ch;}
+
+.cta{
+  border:1px solid var(--line); border-radius:6px; background:var(--surface);
+  padding:26px 24px; margin-top:16px;
+}
+.cta h3{font-size:20px; font-weight:700; margin:0 0 8px;}
+.cta p{font-family:"Source Serif 4",Georgia,serif; font-size:16.5px; color:var(--ink-2); margin:0 0 18px; max-width:62ch;}
+.ctarow{display:flex; flex-wrap:wrap; gap:10px; align-items:center;}
+.ctarow a.btn{text-decoration:none; display:inline-block;}
+
+.foot{
+  margin-top:28px; font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:11.5px; color:var(--ink-3); line-height:1.6;
+}
+
+/* --- Vertiefung (v2) --- */
+.deepoffer{
+  border:1px solid var(--line); border-radius:6px; background:var(--surface-2);
+  padding:24px 22px; margin-top:16px;
+}
+.deepoffer h3{font-size:20px; font-weight:700; margin:0 0 8px;}
+.deepoffer .section-label{margin:0 0 8px;}
+.deeptext{font-family:"Source Serif 4",Georgia,serif; font-size:16.5px; color:var(--ink-2); margin:0 0 18px; max-width:62ch;}
+.deepdone{font-family:"Source Serif 4",Georgia,serif; font-size:16.5px; color:var(--ink-2); margin:0;}
+.deeppick{display:flex; flex-wrap:wrap; gap:10px; align-items:center;}
+.deeppick select{
+  font-family:"Work Sans",sans-serif; font-size:15px; color:var(--ink);
+  background:var(--surface); border:1px solid var(--line-strong);
+  border-radius:4px; padding:11px 11px; min-width:250px; flex:1 1 250px;
+}
+.deeppick select:focus-visible{outline:2px solid var(--focus); outline-offset:1px;}
+
+.groupname{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3);
+  margin:26px 0 12px; padding-top:18px; border-top:1px solid var(--line);
+}
+#deepquestions .groupname:first-child{margin-top:0; padding-top:0; border-top:0;}
+
+.freeblock{margin-top:26px; padding-top:22px; border-top:1px solid var(--line);}
+.freeblock .section-label{margin:0 0 8px;}
+.freeblock p.freeq{font-size:16.5px; font-weight:500; margin:0 0 10px; max-width:62ch;}
+.freeblock textarea{
+  width:100%; min-height:96px; resize:vertical;
+  font-family:"Work Sans",sans-serif; font-size:15px; line-height:1.5; color:var(--ink);
+  background:var(--surface); border:1px solid var(--line-strong); border-radius:4px; padding:11px;
+}
+.freeblock textarea:focus-visible{outline:2px solid var(--focus); outline-offset:1px;}
+.freehint{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px; color:var(--ink-3); margin:8px 0 0;}
+
+.deepverdict{
+  border:1px solid var(--line); border-radius:6px; background:var(--surface);
+  padding:26px 24px; margin-bottom:16px;
+  display:flex; justify-content:space-between; align-items:baseline; gap:16px; flex-wrap:wrap;
+}
+.deepverdict h2{font-size:clamp(22px,3.2vw,28px); font-weight:700; letter-spacing:-.015em; margin:0;}
+.deepverdict .big{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:20px;
+  font-variant-numeric:tabular-nums; color:var(--ink-2); white-space:nowrap;
+}
+.subs{display:grid; gap:12px;}
+.subrow{border:1px solid var(--line); border-radius:6px; background:var(--surface); padding:16px 18px;}
+.subrow.weakish{border-left:3px solid var(--signal);}
+.subhead{display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin-bottom:9px;}
+.subname{font-size:15px; font-weight:600;}
+.subscore{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:12.5px; font-variant-numeric:tabular-nums; color:var(--ink-3); white-space:nowrap;}
+.subrow .meter{margin-bottom:11px; max-width:220px;}
+.subrow p{font-family:"Source Serif 4",Georgia,serif; font-size:16px; color:var(--ink-2); margin:0; max-width:62ch;}
+
+.leverlist, .teamlist{list-style:none; margin:0; padding:0; display:grid; gap:10px;}
+.leverlist li{
+  border:1px solid var(--line); border-radius:6px; background:var(--surface);
+  padding:14px 16px; font-size:15px; line-height:1.5;
+  display:flex; gap:11px; align-items:flex-start; flex-wrap:wrap;
+}
+.leverlist .tag{
+  flex:none; padding:2px 8px; border-radius:3px;
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:10px;
+  letter-spacing:.08em; text-transform:uppercase;
+}
+.leverlist .tag.quick{background:var(--signal-soft); color:var(--signal); border:1px solid var(--signal-line);}
+.leverlist .tag.project{background:var(--accent-soft); color:var(--accent); border:1px solid var(--line-strong);}
+.teamlist li{
+  font-family:"Source Serif 4",Georgia,serif; font-size:16.5px; color:var(--ink-2);
+  border-left:2px solid var(--line-strong); padding:2px 0 2px 16px; max-width:62ch;
+}
+
+[hidden]{display:none !important;}
+@media (prefers-reduced-motion:reduce){ *{transition:none !important; animation:none !important;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <p class="eyebrow" id="eyebrow"></p>
+      <h1 id="title"></h1>
+    </div>
+    <div class="langtoggle" role="group" aria-label="Sprache / Language">
+      <button type="button" data-lang="de" aria-pressed="true">DE</button>
+      <button type="button" data-lang="en" aria-pressed="false">EN</button>
+    </div>
+  </div>
+
+  <p class="lede" id="lede"></p>
+  <p class="meta" id="metaline"></p>
+
+  <ol class="rail" id="rail"></ol>
+  <p class="railmeta" id="railmeta"></p>
+
+  <!-- QUESTION STEPS -->
+  <section id="quiz" class="card" aria-live="polite">
+    <h2 class="dimhead" id="dimhead"></h2>
+    <p class="dimintro" id="dimintro"></p>
+    <div id="questions"></div>
+    <div id="contextbox" class="freeblock" hidden>
+      <p class="freeq" id="contextq"></p>
+      <textarea id="q-context" rows="2"></textarea>
+      <p class="freehint" id="contexthint"></p>
+    </div>
+    <p class="err" id="quizerr"></p>
+    <div class="nav">
+      <button type="button" class="btn btn-ghost" id="back"></button>
+      <button type="button" class="btn" id="next"></button>
+    </div>
+  </section>
+
+  <!-- LEAD STEP -->
+  <section id="lead" class="card" hidden>
+    <h2 class="dimhead" id="leadhead"></h2>
+    <p class="dimintro" id="leadintro"></p>
+    <form id="leadform" novalidate>
+      <div class="fields">
+        <div class="field"><label for="f-first" id="l-first"></label><input id="f-first" name="firstname" autocomplete="given-name"></div>
+        <div class="field"><label for="f-last" id="l-last"></label><input id="f-last" name="lastname" autocomplete="family-name"></div>
+        <div class="field full"><label for="f-email" id="l-email"></label><input id="f-email" name="email" type="email" autocomplete="email" required></div>
+        <div class="field"><label for="f-company" id="l-company"></label><input id="f-company" name="company" autocomplete="organization"></div>
+        <div class="field"><label for="f-size" id="l-size"></label><select id="f-size" name="company_size"></select></div>
+        <div class="field full"><label for="f-role" id="l-role"></label><input id="f-role" name="jobtitle" autocomplete="organization-title"></div>
+      </div>
+      <label class="consent"><input type="checkbox" id="f-consent" required><span id="l-consent"></span></label>
+      <label class="consent"><input type="checkbox" id="f-report"><span id="l-report"></span></label>
+      <p class="err" id="leaderr"></p>
+      <div class="nav">
+        <button type="button" class="btn btn-ghost" id="leadback"></button>
+        <button type="button" class="btn" id="leadsubmit"></button>
+      </div>
+    </form>
+  </section>
+
+  <!-- RESULT -->
+  <section id="result" hidden>
+    <div class="verdict">
+      <p class="stagechip"><span id="stagelabel"></span><span class="stagedots" id="stagedots" aria-hidden="true"></span></p>
+      <h2 id="stagename"></h2>
+      <p id="stagedesc"></p>
+      <p id="stagestruct"></p>
+    </div>
+
+    <p class="section-label" id="profilelabel"></p>
+    <div class="profile" id="profile"></div>
+
+    <p class="section-label" id="noteslabel"></p>
+    <div class="notes" id="notes"></div>
+
+    <div class="gap">
+      <p class="section-label" id="gaplabel"></p>
+      <h3 id="gapname"></h3>
+      <p id="gaptext"></p>
+    </div>
+
+    <div class="cta">
+      <h3 id="ctahead"></h3>
+      <p id="ctatext"></p>
+      <div class="ctarow">
+        <a class="btn" id="ctabtn" href="#" target="_blank" rel="noopener"></a>
+        <span class="hint" id="ctahint"></span>
+      </div>
+    </div>
+
+    <section class="deepoffer" id="deepoffer"></section>
+
+    <p class="foot" id="foot"></p>
+  </section>
+
+  <!-- VERTIEFUNG: Fragen -->
+  <section id="deepquiz" class="card" hidden>
+    <h2 class="dimhead" id="deepquizhead"></h2>
+    <p class="dimintro" id="deepquizintro"></p>
+    <div id="deepquestions"></div>
+    <div class="freeblock">
+      <p class="section-label" id="deepfreelabel"></p>
+      <p class="freeq" id="deepfreeq"></p>
+      <textarea id="deepfree" rows="4"></textarea>
+      <p class="freehint" id="deepfreehint"></p>
+    </div>
+    <p class="err" id="deeperr"></p>
+    <div class="nav">
+      <button type="button" class="btn btn-ghost" id="deepcancel"></button>
+      <button type="button" class="btn" id="deepsubmit"></button>
+    </div>
+  </section>
+
+  <!-- VERTIEFUNG: Ergebnis -->
+  <section id="deepresult" hidden>
+    <div class="deepverdict">
+      <h2 id="deepresulthead"></h2>
+      <span class="big" id="deepresultscore"></span>
+    </div>
+
+    <p class="section-label" id="deepsublabel"></p>
+    <div class="subs" id="deepsubs"></div>
+
+    <p class="section-label" id="deepleverlabel"></p>
+    <ul class="leverlist" id="deeplevers"></ul>
+
+    <p class="section-label" id="deepteamlabel"></p>
+    <ul class="teamlist" id="deepteam"></ul>
+
+    <div class="cta">
+      <h3 id="deepctahead"></h3>
+      <p id="deepctatext"></p>
+      <div class="ctarow">
+        <a class="btn" id="deepctabtn" href="#" target="_blank" rel="noopener"></a>
+        <span class="hint" id="deepctahint"></span>
+      </div>
+    </div>
+
+    <div class="nav">
+      <button type="button" class="btn btn-ghost" id="deepback"></button>
+      <span></span>
+    </div>
+  </section>
+</div>
+
+<script>
+/* ------------------------------------------------------------------
+   KONFIGURATION  (hier anpassen, bevor du das Tool live schaltest)
+   ------------------------------------------------------------------ */
+const CONFIG = {
+  // "demo"    = nichts wird gesendet, Daten landen nur in der Konsole
+  // "hubspot" = Direktversand an die HubSpot Forms API (Formular vorher in HubSpot anlegen)
+  // "webhook" = Versand an eine eigene URL (z. B. Make.com Custom Webhook)
+  mode: "webhook",
+  // EU-Konto: Das Portal liegt auf EU1 (app-eu1.hubspot.com), deshalb steht submitHost auf
+  // dem EU-Host api-eu1.hsforms.com. Vor dem Scharfschalten von mode:"hubspot" einen echten
+  // Testsubmit machen und in HubSpot pruefen, ob der Kontakt ankommt. Falls nicht, submitHost
+  // auf "api.hsforms.com" (global) umstellen.
+  hubspot: { portalId: "146377070", formGuid: "HIER-FORM-GUID-EINTRAGEN", submitHost: "api-eu1.hsforms.com" },
+  // Make.com Custom-Webhook-URL (mode:"webhook"). Zum Scharfschalten mode auf "webhook" stellen.
+  webhookUrl: "https://hook.eu1.make.com/faar8d7a27jmfxknkobhfu8i5r20y2wv",
+  // CTA-Ziel in diesem Flow: HubSpot-Meeting-Planer (ersetzt Calendly nur hier; Buchung
+  // wird automatisch am HubSpot-Kontakt geloggt).
+  bookingUrl: "https://meetings-eu1.hubspot.com/marco-mansfeld",
+  // Ziel des Datenschutz-Links in der Einwilligungszeile. Auf die echte
+  // Datenschutzseite der Wix-Site zeigen lassen, sobald der Passus dort steht.
+  privacyUrl: { de: "https://www.marcomansfeld.com/privacy-policy",
+                en: "https://www.marcomansfeld.com/en/privacy-policy" },
+  // Report-Checkbox. In der Make-Version verschickt Make den Report, daher sichtbar.
+  // Das Feld hr_maturity_wants_report wird weiter mitgesendet.
+  showReportCheckbox: true
+};
+
+/* ------------------------------------------------------------------
+   INHALTE
+   ------------------------------------------------------------------ */
+const DIMS = [
+  { id:"strategie", key:"D1",
+    de:{ name:"Strategie & Organisation",
+         intro:"Ob Zielbild, Rollen und Entscheidungswege zusammenpassen." },
+    en:{ name:"Strategy & organization",
+         intro:"Whether your target picture, roles and decision paths line up." },
+    q:[
+      { de:"Wir haben ein schriftlich festgehaltenes Zielbild für Organisation und Personal, das zur Wachstumsplanung der nächsten 12 bis 24 Monate passt.",
+        en:"We have a written target picture for organization and people that matches our growth plan for the next 12 to 24 months." },
+      { de:"Verantwortlichkeiten und Entscheidungswege sind so klar, dass Führungskräfte handeln können, ohne bei der Geschäftsführung rückzufragen.",
+        en:"Responsibilities and decision paths are clear enough that managers can act without checking back with the founders." },
+      { de:"Wenn wir eine neue Rolle schaffen, ist vorher klar, welches Problem sie löst und woran wir ihren Erfolg messen.",
+        en:"When we create a new role, we know upfront which problem it solves and how we will measure its success." }
+    ]},
+  { id:"recruiting", key:"D2",
+    de:{ name:"Recruiting & Onboarding",
+         intro:"Wie verlässlich Sie besetzen und wie neue Leute ankommen." },
+    en:{ name:"Recruiting & onboarding",
+         intro:"How reliably you hire and how new people land." },
+    q:[
+      { de:"Unser Recruiting-Prozess ist für alle Rollen gleich aufgesetzt: definierte Schritte, feste Verantwortliche, vereinbarte Reaktionszeiten.",
+        en:"Our hiring process works the same way for every role: defined steps, named owners, agreed response times." },
+      { de:"Neue Mitarbeitende haben ab Tag 1 einen strukturierten Onboarding-Plan mit klaren Zielen für die ersten 90 Tage.",
+        en:"New hires have a structured onboarding plan from day one, with clear goals for the first 90 days." },
+      { de:"Wir wissen, wie lange eine Besetzung dauert und an welchen Stellen Kandidat:innen abspringen.",
+        en:"We know how long a hire takes and where candidates drop out." }
+    ]},
+  { id:"talent", key:"D3",
+    de:{ name:"Talentmanagement & Führung",
+         intro:"Ob Entwicklung stattfindet oder auf Zuruf passiert." },
+    en:{ name:"Talent management & leadership",
+         intro:"Whether development is systematic or happens on request." },
+    q:[
+      { de:"Unsere Führungskräfte sind befähigt und verbindlich eingebunden, regelmäßige Entwicklungs- und Leistungsgespräche zu führen.",
+        en:"Our managers are equipped and expected to hold regular development and performance conversations." },
+      { de:"Für unsere geschäftskritischen Rollen wissen wir, wer sie im Ernstfall übernehmen könnte.",
+        en:"For our business-critical roles, we know who could step in if someone leaves." },
+      { de:"Wir holen an den kritischen Punkten des Mitarbeiterlebenszyklus strukturiert Feedback ein, etwa nach dem Onboarding und beim Austritt.",
+        en:"We collect structured feedback at the critical points of the employee lifecycle, for example after onboarding and at exit." }
+    ]},
+  { id:"prozesse", key:"D4",
+    de:{ name:"HR-Prozesse & Technologie",
+         intro:"Wie viel Aufmerksamkeit die Administration noch kostet." },
+    en:{ name:"HR processes & technology",
+         intro:"How much attention administration still costs you." },
+    q:[
+      { de:"Stammdaten, Verträge und Abwesenheiten liegen in einem einzigen System.",
+        en:"Employee data, contracts and absences live in one single system." },
+      { de:"Wiederkehrende Abläufe wie Eintritt, Austritt und Freigaben laufen automatisiert ab, ohne dass jemand sie anstoßen muss.",
+        en:"Recurring workflows such as joining, leaving and approvals run automatically, without anyone having to chase them." },
+      { de:"Unsere Systeme sind so verbunden, dass dieselbe Information nicht an mehreren Stellen gepflegt werden muss.",
+        en:"Our systems are connected well enough that the same information is not maintained in several places." }
+    ]},
+  { id:"daten", key:"D5",
+    de:{ name:"Daten & Kennzahlen",
+         intro:"Ob Zahlen Entscheidungen verändern oder nur berichtet werden." },
+    en:{ name:"Data & metrics",
+         intro:"Whether numbers change decisions or just get reported." },
+    q:[
+      { de:"Wir steuern Personalthemen an einem kleinen Satz fester Kennzahlen, die auch die Geschäftsführung kennt.",
+        en:"We steer people topics with a small set of fixed metrics that leadership knows too." },
+      { de:"Wir verknüpfen harte Zahlen wie Fluktuation oder Time-to-hire mit qualitativem Feedback, um Ursachen zu verstehen.",
+        en:"We connect hard numbers such as attrition or time-to-hire with qualitative feedback to understand causes." },
+      { de:"Erkenntnisse aus Personaldaten haben in den letzten zwölf Monaten nachweislich eine Geschäftsentscheidung verändert.",
+        en:"In the past twelve months, insights from people data demonstrably changed a business decision." }
+    ]}
+];
+
+const SCALE = {
+  de:["Trifft nicht zu","Ansatzweise","Weitgehend","Durchgängig"],
+  en:["Not at all","In parts","Largely","Consistently"]
+};
+
+// Optionaler Freitext je Dimension im Kurzcheck. Wird nur an Marco (HubSpot-Notiz)
+// weitergegeben, nie im Lead-Report gezeigt. Formulierungen anpassbar.
+const CONTEXT = {
+  strategie:{ de:"Wo hakt es bei Zielbild oder Entscheidungswegen konkret?",
+              en:"Where exactly do your target picture or decision paths get stuck?" },
+  recruiting:{ de:"Welche Besetzung bereitet Ihnen gerade am meisten Kopfzerbrechen?",
+               en:"Which role is giving you the most headache to fill right now?" },
+  talent:{ de:"Wo sehen Sie bei Führung oder Nachfolge das größte Risiko?",
+           en:"Where do you see the biggest risk in leadership or succession?" },
+  prozesse:{ de:"Welcher Ablauf kostet Sie aktuell am meisten Zeit?",
+             en:"Which recurring process costs you the most time right now?" },
+  daten:{ de:"Welche Zahl fehlt Ihnen für gute Entscheidungen?",
+          en:"Which number are you missing for good decisions?" }
+};
+
+const STAGES = {
+  de:[
+    { name:"Reaktiv", desc:"Personalarbeit funktioniert, weil einzelne Menschen sie tragen. Das hält, solange das Unternehmen klein genug ist, um es zu überblicken. Beim nächsten Wachstumsschritt wird genau das zum Engpass.",
+      struct:"Entspricht Stufe 0 bis 1 im ausführlichen Reifegradmodell: informell bis ad hoc." },
+    { name:"Aktiv", desc:"Die wichtigsten Abläufe stehen, aber sie hängen an Personen. Die Struktur dahinter fehlt noch. Wenn jemand ausfällt oder das Team wächst, fällt der Prozess auf Handarbeit zurück.",
+      struct:"Entspricht Stufe 2: initiiert, standardisiert in Teilen." },
+    { name:"Integriert", desc:"Ihre Systeme greifen ineinander und die Administration ist weitgehend im Griff. Die offene Frage lautet inzwischen, ob Ihre Prozesse auch die richtigen Entscheidungen auslösen.",
+      struct:"Entspricht Stufe 3: definiert und wiederholbar." },
+    { name:"Strategisch", desc:"Personalarbeit trifft Geschäftsentscheidungen mit. Hier geht es um Feinjustierung und um die Frage, wo Sie sich als Arbeitgeber tatsächlich unterscheiden wollen.",
+      struct:"Entspricht Stufe 4 bis 5: gesteuert bis verankert." }
+  ],
+  en:[
+    { name:"Reactive", desc:"People work runs because individuals carry it. That holds while the company is small enough to see end to end. At the next growth step, exactly that becomes the bottleneck.",
+      struct:"Maps to stage 0 to 1 in the detailed maturity model: informal to ad hoc." },
+    { name:"Active", desc:"The core processes exist, but they hang on people. The structure behind them is still missing. When someone is out or the team grows, the process falls back to manual work.",
+      struct:"Maps to stage 2: initiated, partly standardized." },
+    { name:"Integrated", desc:"Your systems work together and administration is largely under control. The open question now is whether your processes also trigger the right decisions.",
+      struct:"Maps to stage 3: defined and repeatable." },
+    { name:"Strategic", desc:"People work shapes business decisions. From here it is about fine-tuning and about where you actually want to stand out as an employer.",
+      struct:"Maps to stage 4 to 5: managed to embedded." }
+  ]
+};
+
+const NOTES = {
+  strategie:{
+    de:["Es gibt kein geteiltes Zielbild. Jede Führungskraft arbeitet mit einer eigenen Version davon, wo das Unternehmen hin will.",
+        "Ein Zielbild existiert, ist aber nicht in Rollen und Entscheidungswege übersetzt. Deshalb landet zu viel wieder bei der Geschäftsführung.",
+        "Struktur und Zielbild passen zusammen. Die offene Frage ist, ob beides auch die nächste Wachstumsstufe trägt.",
+        "Organisation und Wachstumsplanung sind synchron. Was jetzt ansteht, ist Feinjustierung."],
+    en:["There is no shared target picture. Every manager works from their own version of where the company is going.",
+        "A target picture exists but has not been translated into roles and decision paths. That is why too much lands back with the founders.",
+        "Structure and target picture fit together. The open question is whether both carry the next growth step.",
+        "Organization and growth plan are in sync. What is left here is fine-tuning."]
+  },
+  recruiting:{
+    de:["Besetzungen laufen von Fall zu Fall. Wer eingestellt wird, hängt stark davon ab, wer gerade Zeit hat.",
+        "Der Prozess steht grob, aber Reaktionszeiten und Verantwortlichkeiten sind nicht verbindlich. Genau da verlieren Sie die besten Kandidat:innen.",
+        "Recruiting und Onboarding laufen wiederholbar. Der Hebel liegt jetzt in der Qualität der ersten 90 Tage.",
+        "Der Einstellungsprozess ist ein Instrument geworden. Er bremst Ihr Wachstum nicht mehr."],
+    en:["Hiring runs case by case. Who gets hired depends a lot on who happens to have time.",
+        "The process roughly exists, but response times and ownership are not binding. That is exactly where you lose the best candidates.",
+        "Recruiting and onboarding are repeatable. The lever now sits in the quality of the first 90 days.",
+        "Hiring has become an instrument. It no longer slows your growth down."]
+  },
+  talent:{
+    de:["Entwicklung passiert, wenn jemand danach fragt. Für die kritischen Rollen gibt es keinen Plan B.",
+        "Gespräche finden statt, aber ohne gemeinsamen Standard. Was daraus folgt, hängt an der einzelnen Führungskraft.",
+        "Führung und Entwicklung sind eingespielt. Offen ist meist die Nachfolge für die geschäftskritischen Rollen.",
+        "Sie wissen, wen Sie haben, wen Sie brauchen und was passiert, wenn jemand geht."],
+    en:["Development happens when someone asks for it. For the critical roles there is no plan B.",
+        "Conversations take place, but without a shared standard. What follows depends on the individual manager.",
+        "Leadership and development are established. What is usually still open is succession for the business-critical roles.",
+        "You know who you have, who you need and what happens when someone leaves."]
+  },
+  prozesse:{
+    de:["Die Daten liegen verteilt. Jede Auswertung ist Handarbeit und jede Zahl diskutabel.",
+        "Ein System ist da, aber daneben laufen weiter Excel-Listen und Postfächer. Der Aufwand bleibt.",
+        "Die Basis läuft sauber. Der nächste Schritt sind die Schnittstellen zwischen den Systemen.",
+        "Administration kostet kaum noch Aufmerksamkeit. Sie ist gelöst."],
+    en:["Data sits in different places. Every analysis is manual work and every number is debatable.",
+        "A system exists, but spreadsheets and inboxes run alongside it. The effort stays.",
+        "The base runs cleanly. The next step is the interfaces between systems.",
+        "Administration barely costs attention any more. It is solved."]
+  },
+  daten:{
+    de:["Personalentscheidungen beruhen auf Einschätzung. Das trägt, solange Sie das Unternehmen noch überblicken.",
+        "Zahlen werden erhoben, ohne dass jemand damit steuert. Sie berichten, und dabei bleibt es.",
+        "Kennzahlen sind etabliert. Was fehlt, ist die Verbindung zwischen harten Zahlen und dem, was Mitarbeitende tatsächlich erleben.",
+        "Personaldaten verändern Geschäftsentscheidungen. Das ist das Ziel."],
+    en:["People decisions rest on judgement. That works while you can still see the whole company.",
+        "Numbers are collected without anyone steering by them. You report, and that is where it ends.",
+        "Metrics are established. What is missing is the link between hard numbers and what employees actually experience.",
+        "People data changes business decisions. That is the goal."]
+  }
+};
+
+const GAPTEXT = {
+  strategie:{ de:"Solange das Zielbild und die Entscheidungswege nicht stehen, verpufft jede operative Maßnahme darunter. Fangen Sie hier an, alles andere kommt danach.",
+              en:"As long as the target picture and decision paths are unclear, every operational measure below them fizzles out. Start here, everything else comes after." },
+    recruiting:{ de:"Ein unverbindlicher Einstellungsprozess kostet Sie die Leute, die Sie eigentlich haben wollten. Das ist im Wachstum der teuerste Posten.",
+              en:"A non-binding hiring process costs you the people you actually wanted. In a growth phase that is the most expensive item." },
+    talent:{ de:"Wenn Entwicklung und Nachfolge an einzelnen Führungskräften hängen, ist Ihr Risiko personengebunden. Beim nächsten Abgang merken Sie, wie groß es ist.",
+              en:"When development and succession hang on individual managers, your risk is tied to people. You notice how big it is at the next departure." },
+    prozesse:{ de:"Jede Stunde in der Administration ist eine Stunde, die für Führung und Entwicklung fehlt. Hier liegen die schnellsten sichtbaren Erfolge.",
+              en:"Every hour spent on administration is an hour missing from leadership and development. This is where the fastest visible wins sit." },
+    daten:{ de:"Ohne belastbare Zahlen bleibt Personalarbeit Meinung gegen Meinung. Das ist der Punkt, an dem HR am Tisch der Geschäftsführung an Gewicht verliert.",
+              en:"Without solid numbers, people work stays opinion against opinion. That is where HR loses weight at the leadership table." }
+};
+
+const UI = {
+  de:{
+    eyebrow:"HR-Reifegrad-Check", title:"Wie belastbar ist Ihre Organisation für den nächsten Wachstumsschritt?",
+    lede:"Fünfzehn Aussagen, fünf Dimensionen, eine ehrliche Einordnung. Sie bekommen direkt im Anschluss Ihr Reifegradprofil und den Punkt, an dem es bei Ihnen zuerst klemmt.",
+    meta:["5 Dimensionen","15 Aussagen","ca. 3 Minuten","kein Login"],
+    railmeta:(a,b,n)=>`Schritt ${a} von ${b} · ${n}`,
+    railmetaLead:(b)=>`Schritt ${b} von ${b} · Ergebnis freischalten`,
+    railmetaDone:"Ihre Auswertung",
+    back:"Zurück", next:"Weiter", toLead:"Zum Ergebnis",
+    quizerr:"Bitte beantworten Sie alle drei Aussagen, bevor Sie weitergehen.",
+    contextHint:"Optional. Hilft mir, Ihre Lage besser einzuordnen. Wird nicht ausgewertet, sondern von mir gelesen.",
+    leadhead:"Ergebnis freischalten", leadintro:"Ihre Auswertung erscheint direkt auf dieser Seite. Die E-Mail-Adresse brauche ich nur, wenn Sie das Ergebnis auch schriftlich haben wollen.",
+    lfirst:"Vorname", llast:"Nachname", lemail:"E-Mail-Adresse", lcompany:"Unternehmen", lsize:"Mitarbeitende", lrole:"Ihre Rolle",
+    sizes:["Bitte wählen","unter 50","50 bis 75","75 bis 150","150 bis 250","über 250"],
+    consent:"Ich bin einverstanden, dass Marco Mansfeld meine Angaben zur Auswertung und Kontaktaufnahme speichert.",
+    privacyNote:"Mehr dazu in der ",
+    privacyLink:"Datenschutzerklärung",
+    report:"Bitte schicken Sie mir zusätzlich den ausführlichen Report per E-Mail.",
+    leadsubmit:"Ergebnis anzeigen",
+    errEmail:"Bitte tragen Sie eine gültige E-Mail-Adresse ein.",
+    errConsent:"Bitte setzen Sie noch das Häkchen bei der Einwilligung, dann geht es weiter.",
+    errBoth:"Bitte tragen Sie eine gültige E-Mail-Adresse ein und setzen Sie das Häkchen bei der Einwilligung.",
+    sending:"Wird gesendet …",
+    stagelabel:"Reifegrad", profilelabel:"Ihr Reifegradprofil", noteslabel:"Was das je Dimension heißt",
+    gaplabel:"Ihr engster Punkt", weak:"engster Punkt",
+    ctahead:"Wo Sie damit weitermachen",
+    ctatext:"Diese Einordnung ist ein Ausgangspunkt. Für eine Diagnose braucht es ein Gespräch. In einem Erstgespräch schauen wir uns Ihren engsten Punkt konkret an und ob sich daraus etwas ergibt, das den Aufwand wert ist.",
+    ctabtn:"Erstgespräch buchen", ctahint:"30 Minuten, kostenfrei, ohne Verkaufsgespräch.",
+    foot:"Das hier ist eine Selbsteinschätzung. Die Aussagen sind aus einem ausführlichen HR-Reifegrad-Assessment verdichtet und decken bewusst nicht jedes Detail ab.",
+    scoreOf:(v)=>v.toFixed(1).replace(".",",")+" / 4"
+  },
+  en:{
+    eyebrow:"HR maturity check", title:"How well does your organization hold up for the next growth step?",
+    lede:"Fifteen statements, five dimensions, one honest read. You get your maturity profile right away, plus the point where it breaks first.",
+    meta:["5 dimensions","15 statements","approx. 3 minutes","no login"],
+    railmeta:(a,b,n)=>`Step ${a} of ${b} · ${n}`,
+    railmetaLead:(b)=>`Step ${b} of ${b} · Unlock result`,
+    railmetaDone:"Your result",
+    back:"Back", next:"Next", toLead:"To the result",
+    quizerr:"Please answer all three statements before moving on.",
+    contextHint:"Optional. Helps me read your situation. Not scored, I read it before we speak.",
+    leadhead:"Unlock your result", leadintro:"Your result appears right on this page. I only need your email if you also want it in writing.",
+    lfirst:"First name", llast:"Last name", lemail:"Email address", lcompany:"Company", lsize:"Employees", lrole:"Your role",
+    sizes:["Please select","under 50","50 to 75","75 to 150","150 to 250","over 250"],
+    consent:"I agree that Marco Mansfeld may store my details to prepare the result and get in touch.",
+    privacyNote:"More on this in the ",
+    privacyLink:"privacy policy",
+    report:"Please also send me the detailed report by email.",
+    leadsubmit:"Show my result",
+    errEmail:"Please enter a valid email address.",
+    errConsent:"Please tick the consent box, then you're good to go.",
+    errBoth:"Please enter a valid email address and tick the consent box.",
+    sending:"Sending …",
+    stagelabel:"Maturity", profilelabel:"Your maturity profile", noteslabel:"What this means per dimension",
+    gaplabel:"Your tightest point", weak:"tightest point",
+    ctahead:"Where to take this next",
+    ctatext:"This is a starting point. A diagnosis needs a conversation. In a first conversation we look at your tightest point directly and whether anything worth the effort comes out of it.",
+    ctabtn:"Book a first conversation", ctahint:"30 minutes, free, no sales pitch.",
+    foot:"This is a self-assessment. The statements are condensed from a full HR maturity assessment and deliberately do not cover every detail.",
+    scoreOf:(v)=>v.toFixed(1)+" / 4"
+  }
+};
+
+/* Reihenfolge der Hebel bei Gleichstand: Strategie zuerst, danach Steuerung, dann Betrieb. */
+const GAP_PRIORITY = ["strategie","daten","prozesse","talent","recruiting"];
+
+
+/* ------------------------------------------------------------------
+   VERTIEFUNG (Version 2): je Dimension 6 Aussagen in 3 Teilaspekten,
+   eine Freitextfrage, konkrete Hebel und Fragen fuer das Fuehrungsteam.
+   Alles regelbasiert, keine KI, kein Backend.
+   ------------------------------------------------------------------ */
+const DEEP = {
+  strategie:{
+    free:{ de:"Welche Entscheidung landet bei Ihnen zu oft wieder bei der Geschäftsführung?",
+           en:"Which decision keeps landing back with the founders?" },
+    teamq:{ de:["Wenn wir morgen 30 Prozent mehr Leute wären, welche Entscheidung würde als erstes zum Engpass?",
+                "Wer darf bei uns eine Stelle schaffen, und wer darf sie streichen?",
+                "Woran würden wir merken, dass unsere Struktur nicht mehr passt, bevor es weh tut?"],
+            en:["If we were 30 percent bigger tomorrow, which decision would become the bottleneck first?",
+                "Who is allowed to create a role here, and who is allowed to cut one?",
+                "How would we notice our structure no longer fits, before it hurts?"] },
+    groups:[
+      { name:{de:"Zielbild und Richtung", en:"Target picture and direction"},
+        q:[{de:"Das Zielbild für die Organisation ist schriftlich festgehalten und den Führungskräften bekannt.",
+            en:"The target picture for the organization is written down and known to the management team."},
+           {de:"Wir haben eine Personalplanung, die zur Umsatz- und Wachstumsplanung passt.",
+            en:"We have a workforce plan that matches the revenue and growth plan."}],
+        low:{de:"Das Zielbild lebt in Köpfen. Aufgeschrieben hat es niemand. Damit hat jede Führungskraft eine leicht andere Version, und die Unterschiede zeigen sich erst im Konflikt.",
+             en:"The target picture lives in people's heads. Nobody wrote it down. Every manager holds a slightly different version, and the differences only surface in conflict."},
+        high:{de:"Richtung und Personalplanung hängen zusammen. Das ist die Voraussetzung dafür, dass Einstellungen nicht zu Einzelentscheidungen werden.",
+              en:"Direction and workforce plan are connected. That is the precondition for hiring not to become a series of one-off calls."} },
+      { name:{de:"Rollen und Entscheidungen", en:"Roles and decisions"},
+        q:[{de:"Für jede Führungsrolle ist klar, welche Entscheidungen sie allein trifft.",
+            en:"For every leadership role it is clear which decisions it makes alone."},
+           {de:"Eskalationen zur Geschäftsführung sind bei uns die Ausnahme.",
+            en:"Escalations to the founders are the exception here."}],
+        low:{de:"Entscheidungsrechte werden bei jedem Fall neu verhandelt. Das kostet die Geschäftsführung Zeit und die Führungskräfte Autorität.",
+             en:"Decision rights get negotiated case by case. That costs the founders time and the managers authority."},
+        high:{de:"Ihre Führungskräfte können handeln. Das ist der Unterschied zwischen einer Struktur und einem Organigramm.",
+              en:"Your managers can act. That is the difference between a structure and an org chart."} },
+      { name:{de:"Struktur und Steuerung", en:"Structure and governance"},
+        q:[{de:"Unsere Aufbauorganisation ist dokumentiert und wird bei Veränderungen aktualisiert.",
+            en:"Our organizational structure is documented and updated when things change."},
+           {de:"Es gibt einen festen Rhythmus, in dem Organisationsthemen entschieden werden.",
+            en:"There is a fixed rhythm in which organizational topics get decided."}],
+        low:{de:"Organisationsfragen werden behandelt, wenn sie brennen. Damit sind Sie strukturell immer einen Schritt hinter dem Wachstum.",
+             en:"Organizational questions get handled when they burn. That leaves you structurally one step behind your growth."},
+        high:{de:"Sie haben einen Ort, an dem Organisationsfragen hingehören. Das verhindert, dass sie in der Tagesarbeit versickern.",
+              en:"You have a place where organizational questions belong. That keeps them from dissolving into daily work."} }
+    ],
+    levers:{
+      build:[{de:"Entscheidungsmatrix für die Top-15-Entscheidungen: wer entscheidet, wer wird gehört, wer wird informiert.", en:"Decision matrix for your top 15 decisions: who decides, who is consulted, who is informed.", tag:"quick"},
+             {de:"Zielbild auf eine Seite bringen und mit den Führungskräften gemeinsam durchgehen.", en:"Get the target picture onto one page and review it with your managers, as a working session.", tag:"quick"},
+             {de:"Personalplanung an die Umsatzplanung koppeln, über ein einfaches Verhältnis.", en:"Tie the workforce plan to the revenue plan through a simple ratio.", tag:"project"}],
+      scale:[{de:"Fester Organisationsreview pro Quartal, 90 Minuten, mit festen Teilnehmern.", en:"A fixed quarterly organization review, 90 minutes, with a fixed set of participants.", tag:"quick"},
+             {de:"Rollenprofile für die Führungsebene schärfen, inklusive der Entscheidungen, die die Rolle trägt.", en:"Sharpen the role profiles at leadership level, including the decisions the role carries.", tag:"project"},
+             {de:"Szenario für die nächste Wachstumsstufe durchspielen, bevor sie eintritt.", en:"Play through a scenario for the next growth step before it arrives.", tag:"project"}]
+    }
+  },
+
+  recruiting:{
+    free:{ de:"Welche Stelle haben Sie zuletzt am schwersten besetzt, und woran lag es?",
+           en:"Which role was hardest to fill recently, and why?" },
+    teamq:{ de:["Wie lange dauert bei uns die Rückmeldung nach einem Erstgespräch, ehrlich gemessen?",
+                "Woran genau erkennen wir, dass jemand zu uns passt, und wer prüft das?",
+                "Was hat unsere letzte Fehlbesetzung gekostet, in Geld und in Zeit?"],
+            en:["How long does our feedback after a first interview actually take, measured honestly?",
+                "What exactly tells us someone fits here, and who checks it?",
+                "What did our last bad hire cost, in money and in time?"] },
+    groups:[
+      { name:{de:"Prozess und Verbindlichkeit", en:"Process and commitment"},
+        q:[{de:"Für jede Vakanz gibt es ein schriftliches Anforderungsprofil, bevor die Suche startet.",
+            en:"Every vacancy has a written requirement profile before the search starts."},
+           {de:"Wir haben vereinbarte Reaktionszeiten gegenüber Kandidat:innen und halten sie ein.",
+            en:"We have agreed response times towards candidates and we keep them."}],
+        low:{de:"Ohne Anforderungsprofil und ohne Reaktionszeiten wird Recruiting ein Zufallsgenerator. Beides ist an einem Nachmittag geregelt und wirkt sofort.",
+             en:"Without a requirement profile and without response times, hiring is a random generator. Both are settled in one afternoon and take effect immediately."},
+        high:{de:"Der Rahmen steht. Damit hängt die Qualität nicht mehr daran, wer gerade die Suche führt.",
+              en:"The frame is in place. Quality no longer depends on who happens to run the search."} },
+      { name:{de:"Auswahlqualität", en:"Selection quality"},
+        q:[{de:"Interviews folgen einem festen Leitfaden, unabhängig davon, wer sie führt.",
+            en:"Interviews follow a fixed guide, whoever runs them."},
+           {de:"An einer Einstellungsentscheidung ist mehr als eine Person beteiligt.",
+            en:"More than one person is involved in a hiring decision."}],
+        low:{de:"Auswahl nach Bauchgefühl produziert Leute, die dem Interviewer ähneln. Im Wachstum ist das teuer, weil Sie Vielfalt an Fähigkeiten brauchen. Sympathie hilft Ihnen dabei wenig.",
+             en:"Gut-feel selection produces people who resemble the interviewer. In a growth phase that is expensive, because you need a range of skills. Likeability helps you little there."},
+        high:{de:"Ihre Auswahl ist überprüfbar. Das ist die Grundlage dafür, aus Fehlbesetzungen überhaupt lernen zu können.",
+              en:"Your selection is auditable. That is what makes it possible to learn from a bad hire at all."} },
+      { name:{de:"Onboarding", en:"Onboarding"},
+        q:[{de:"Neue Mitarbeitende haben am ersten Tag Arbeitsplatz, Zugänge und einen festen Ansprechpartner.",
+            en:"New hires have a desk, access and a named contact on day one."},
+           {de:"Nach 90 Tagen gibt es ein strukturiertes Gespräch darüber, ob die Einarbeitung funktioniert hat.",
+            en:"After 90 days there is a structured conversation about whether onboarding worked."}],
+        low:{de:"Der erste Tag ist der teuerste Eindruck, den Sie je machen. Wenn er improvisiert wirkt, korrigiert sich das kaum wieder.",
+             en:"The first day is the most expensive impression you will ever make. If it feels improvised, that rarely gets corrected."},
+        high:{de:"Neue Leute kommen an. Der nächste Hebel liegt darin, was Sie aus den 90-Tage-Gesprächen an Mustern ableiten.",
+              en:"New people land properly. The next lever is what patterns you draw out of those 90-day conversations."} }
+    ],
+    levers:{
+      build:[{de:"48-Stunden-Regel für Rückmeldungen nach Gesprächen, verbindlich für alle Beteiligten.", en:"A 48-hour rule for feedback after interviews, binding for everyone involved.", tag:"quick"},
+             {de:"Eine Seite Anforderungsprofil als Pflicht vor jeder Ausschreibung.", en:"A one-page requirement profile as a precondition for every posting.", tag:"quick"},
+             {de:"Onboarding-Checkliste für Tag 1, Woche 1 und die ersten 90 Tage.", en:"An onboarding checklist for day 1, week 1 and the first 90 days.", tag:"quick"}],
+      scale:[{de:"Interviewleitfaden je Rollenfamilie, beschränkt auf zwei bis drei Kernkompetenzen.", en:"An interview guide per role family, limited to two or three core competencies.", tag:"project"},
+             {de:"Time-to-hire und Absprungpunkte messen und monatlich anschauen.", en:"Measure time-to-hire and drop-out points and review them monthly.", tag:"quick"},
+             {de:"Muster aus den 90-Tage-Gesprächen zurück in die Auswahl spielen.", en:"Feed the patterns from the 90-day conversations back into selection.", tag:"project"}]
+    }
+  },
+
+  talent:{
+    free:{ de:"Wer in Ihrem Team wäre am schwersten zu ersetzen, und warum?",
+           en:"Who on your team would be hardest to replace, and why?" },
+    teamq:{ de:["Welche unserer Führungskräfte haben wir befördert, ohne sie vorzubereiten?",
+                "Wenn unsere beste Person morgen kündigt, was genau passiert dann?",
+                "Wissen wir, warum die letzten fünf Leute gegangen sind, oder vermuten wir es?"],
+            en:["Which of our managers did we promote without preparing them?",
+                "If our best person resigns tomorrow, what exactly happens?",
+                "Do we know why the last five people left, or are we guessing?"] },
+    groups:[
+      { name:{de:"Führungsqualität", en:"Leadership quality"},
+        q:[{de:"Neue Führungskräfte werden auf die Rolle vorbereitet, bevor sie sie übernehmen.",
+            en:"New managers are prepared for the role before they take it on."},
+           {de:"Wir wissen, wie zufrieden Mitarbeitende mit ihrer direkten Führungskraft sind.",
+            en:"We know how satisfied people are with their direct manager."}],
+        low:{de:"Beförderung ohne Vorbereitung ist die häufigste stille Fehlbesetzung in wachsenden Unternehmen. Sie verlieren dabei zwei Personen: die Führungskraft und den Fachmenschen, der sie vorher war.",
+             en:"Promotion without preparation is the most common silent misplacement in growing companies. You lose two people in the process: the manager, and the specialist they used to be."},
+        high:{de:"Sie behandeln Führung als Handwerk. Das ist seltener, als es sein sollte.",
+              en:"You treat leadership as a craft. That is rarer than it should be."} },
+      { name:{de:"Entwicklung", en:"Development"},
+        q:[{de:"Für die wichtigsten Rollen gibt es beschriebene Anforderungen, an denen Entwicklung gemessen wird.",
+            en:"For the key roles there are described requirements against which development is measured."},
+           {de:"Entwicklungsbudget und -zeit sind fest eingeplant.",
+            en:"Development budget and time are firmly planned in."}],
+        low:{de:"Ohne beschriebene Anforderungen wird Entwicklung ein Gespräch über Gefühle. Die Leute merken das und hören auf zu fragen.",
+             en:"Without described requirements, development is a conversation about feelings. People notice and stop asking."},
+        high:{de:"Entwicklung hat bei Ihnen einen Maßstab und einen Platz im Budget. Damit wird sie verlässlich.",
+              en:"Development has a yardstick and a place in the budget. That makes it reliable."} },
+      { name:{de:"Bindung und Nachfolge", en:"Retention and succession"},
+        q:[{de:"Für jede geschäftskritische Rolle ist mindestens eine Nachfolge angedacht.",
+            en:"For every business-critical role at least one successor has been considered."},
+           {de:"Wir kennen die Gründe, aus denen Leute kündigen, und zwar aus Daten.",
+            en:"We know why people resign, and we know it from data."}],
+        low:{de:"Solange Nachfolge ungeklärt ist, ist Ihr größtes Risiko eine einzelne Kündigung. Das ist ein Risiko, das Sie kennen und trotzdem nicht abgesichert haben.",
+             en:"As long as succession is unclear, your biggest risk is a single resignation. That is a risk you know about and still have not covered."},
+        high:{de:"Sie sind auf Abgänge vorbereitet und verstehen die Gründe. Damit werden Kündigungen zu Information. Eine Krise entsteht daraus nicht mehr.",
+              en:"You are prepared for departures and you understand the reasons. That turns resignations into information. They stop becoming crises."} }
+    ],
+    levers:{
+      build:[{de:"Nachfolge-Landkarte für die zehn kritischsten Rollen, eine Stunde Arbeit, sofort ernüchternd.", en:"A succession map for the ten most critical roles. One hour of work, immediately sobering.", tag:"quick"},
+             {de:"Strukturierte Exit-Gespräche einführen und die Gründe mitschreiben.", en:"Introduce structured exit interviews and write the reasons down.", tag:"quick"},
+             {de:"Ein Grundgerüst für Entwicklungsgespräche, das jede Führungskraft gleich nutzt.", en:"A basic frame for development conversations that every manager uses the same way.", tag:"project"}],
+      scale:[{de:"Vorbereitungsformat für neue Führungskräfte, bevor die Beförderung wirksam wird.", en:"A preparation format for new managers, before the promotion takes effect.", tag:"project"},
+             {de:"Kompetenzprofile für die drei wichtigsten Rollenfamilien beschreiben.", en:"Describe competency profiles for the three most important role families.", tag:"project"},
+             {de:"Stay-Gespräche mit den Leuten führen, die Sie nicht verlieren wollen.", en:"Run stay conversations with the people you do not want to lose.", tag:"quick"}]
+    }
+  },
+
+  prozesse:{
+    free:{ de:"Welcher wiederkehrende Ablauf kostet Sie regelmäßig am meisten Zeit?",
+           en:"Which recurring workflow regularly costs you the most time?" },
+    teamq:{ de:["Wie viele Stunden im Monat gehen bei uns in Datenpflege, die niemand liest?",
+                "Welche Liste führen wir doppelt, weil zwei Systeme sich nicht kennen?",
+                "Wenn wir ein System abschalten müssten, welches würde niemandem fehlen?"],
+            en:["How many hours a month go into maintaining data nobody reads?",
+                "Which list do we keep twice because two systems do not know each other?",
+                "If we had to switch off one system, which one would nobody miss?"] },
+    groups:[
+      { name:{de:"Datenhaltung", en:"Data foundation"},
+        q:[{de:"Es gibt genau eine Quelle für Mitarbeiterstammdaten.",
+            en:"There is exactly one source for employee master data."},
+           {de:"Personaldokumente liegen digital und auffindbar an einem Ort.",
+            en:"Personnel documents are digital and findable in one place."}],
+        low:{de:"Solange es mehrere Quellen gibt, ist jede Zahl angreifbar. Das ist der Grund, warum HR-Auswertungen in Meetings diskutiert und danach weggelegt werden.",
+             en:"As long as there are several sources, every number is contestable. That is why HR figures get debated in meetings and then put aside."},
+        high:{de:"Die Basis stimmt. Damit lohnt sich jede Automatisierung, die Sie darauf setzen.",
+              en:"The foundation is sound. That makes every automation you build on it worthwhile."} },
+      { name:{de:"Automatisierung", en:"Automation"},
+        q:[{de:"Ein Eintritt läuft als definierter Ablauf mit festen Beteiligten.",
+            en:"A new joiner runs as a defined workflow with named participants."},
+           {de:"Abwesenheiten und Freigaben laufen ohne manuelle Zwischenschritte.",
+            en:"Absences and approvals run without manual intermediate steps."}],
+        low:{de:"Mail-Ketten sind unsichtbare Kosten. Sie tauchen in keinem Budget auf und fressen trotzdem die Zeit, die für Führung fehlt.",
+             en:"Email chains are invisible costs. They show up in no budget and still eat the time that leadership is missing."},
+        high:{de:"Das Wiederkehrende läuft von selbst. Der nächste Hebel sind die Übergänge zwischen den Systemen.",
+              en:"The recurring things run by themselves. The next lever is the handover between systems."} },
+      { name:{de:"Systemlandschaft", en:"System landscape"},
+        q:[{de:"Unsere Systeme tauschen Daten automatisch aus, ohne Export und Import von Hand.",
+            en:"Our systems exchange data automatically, without manual export and import."},
+           {de:"Wir wissen, welche Systeme wir haben, was sie kosten und wer sie verantwortet.",
+            en:"We know which systems we have, what they cost and who owns them."}],
+        low:{de:"Eine ungeklärte Systemlandschaft wächst schneller als das Unternehmen. Jedes Jahr Aufschub macht die Bereinigung teurer.",
+             en:"An unclear system landscape grows faster than the company. Every year of delay makes the cleanup more expensive."},
+        high:{de:"Sie haben Ihre Werkzeuge im Griff. Das ist die Voraussetzung dafür, dass Kennzahlen überhaupt automatisch entstehen können.",
+              en:"You have your tools under control. That is the precondition for metrics to appear automatically at all."} }
+    ],
+    levers:{
+      build:[{de:"Eine Systemliste anlegen: Tool, Zweck, Kosten, verantwortliche Person. Meist reicht eine Tabelle.", en:"Create a system list: tool, purpose, cost, owner. A spreadsheet is usually enough.", tag:"quick"},
+             {de:"Den Eintrittsprozess einmal aufschreiben, mit Beteiligten und Reihenfolge.", en:"Write down the joining process once, with participants and sequence.", tag:"quick"},
+             {de:"Eine einzige Quelle für Stammdaten festlegen und den Rest daran ausrichten.", en:"Decide on a single source for master data and align everything else to it.", tag:"project"}],
+      scale:[{de:"Abwesenheiten und Freigaben mit vorhandenen Vorlagen automatisieren, ohne IT-Projekt.", en:"Automate absences and approvals with existing templates, without an IT project.", tag:"quick"},
+             {de:"Die zwei wichtigsten Systeme verbinden und den Rest vorerst liegen lassen.", en:"Connect the two most important systems and leave the rest for now.", tag:"project"},
+             {de:"Austrittsprozess genauso sauber aufsetzen wie den Eintritt. Der wird fast immer vergessen.", en:"Set up the leaving process as cleanly as the joining one. It is almost always forgotten.", tag:"quick"}]
+    }
+  },
+
+  daten:{
+    free:{ de:"Welche Zahl würden Sie gern kennen, haben Sie aber nicht?",
+           en:"Which number would you like to know but do not have?" },
+    teamq:{ de:["Welche drei Zahlen würden wir vermissen, wenn sie morgen wegfielen?",
+                "Wann hat zuletzt eine Personalkennzahl eine Entscheidung verändert?",
+                "Wer bei uns kann erklären, was hinter einer Zahl steht?"],
+            en:["Which three numbers would we miss if they disappeared tomorrow?",
+                "When did a people metric last change a decision?",
+                "Who here can explain what sits behind a number?"] },
+    groups:[
+      { name:{de:"Kennzahlen-Basis", en:"Metric foundation"},
+        q:[{de:"Wir haben einen festen, kleinen Satz an Personalkennzahlen, der regelmäßig aktualisiert wird.",
+            en:"We have a fixed, small set of people metrics that is updated regularly."},
+           {de:"Die Zahlen entstehen automatisch, ohne Handarbeit vor jeder Sitzung.",
+            en:"The numbers appear automatically, without manual work before each meeting."}],
+        low:{de:"Kennzahlen, die vor jeder Sitzung von Hand gebaut werden, sind eine Pflichtübung. Sie kommen zu spät und zu selten, um etwas zu ändern.",
+             en:"Metrics assembled by hand before every meeting are an obligation. They arrive too late and too rarely to change anything."},
+        high:{de:"Die Zahlen sind da, ohne dass jemand sie erzeugen muss. Damit können Sie sich auf die Interpretation konzentrieren.",
+              en:"The numbers are there without anyone having to produce them. That lets you focus on interpretation."} },
+      { name:{de:"Interpretation", en:"Interpretation"},
+        q:[{de:"Wir schauen auf Entwicklungen über Zeit, über den aktuellen Stand hinaus.",
+            en:"We look at developments over time, beyond the current state."},
+           {de:"Wir verstehen, warum eine Kennzahl sich verändert hat, bevor wir reagieren.",
+            en:"We understand why a metric moved before we react to it."}],
+        low:{de:"Einzelwerte ohne Verlauf verleiten zu Aktionismus. Die häufigste Folge ist eine Maßnahme gegen ein Symptom, das sich von selbst erledigt hätte.",
+             en:"Single values without a trend invite knee-jerk action. The usual result is a measure against a symptom that would have resolved itself."},
+        high:{de:"Sie lesen Zahlen als Verlauf und suchen die Ursache. Das ist der Unterschied zwischen Reporting und Steuerung.",
+              en:"You read numbers as a trend and look for the cause. That is the difference between reporting and steering."} },
+      { name:{de:"Wirkung", en:"Impact"},
+        q:[{de:"Personalkennzahlen sind fester Bestandteil der Geschäftsführungsrunde.",
+            en:"People metrics are a fixed part of the leadership meeting."},
+           {de:"Es gibt konkrete Beispiele, wo eine Zahl eine Entscheidung verändert hat.",
+            en:"There are concrete examples where a number changed a decision."}],
+        low:{de:"Zahlen ohne Adressat verpuffen. Wenn Personalkennzahlen nicht auf der Tagesordnung stehen, entscheidet weiter das lauteste Argument.",
+             en:"Numbers without an audience evaporate. If people metrics are not on the agenda, the loudest argument keeps deciding."},
+        high:{de:"Ihre Zahlen haben Konsequenzen. Damit hat HR am Tisch der Geschäftsführung eine Stimme, die auf Belegen beruht.",
+              en:"Your numbers have consequences. That gives HR a voice at the leadership table that rests on evidence."} }
+    ],
+    levers:{
+      build:[{de:"Auf fünf Kennzahlen einigen und alles andere für ein Jahr weglassen.", en:"Agree on five metrics and drop everything else for a year.", tag:"quick"},
+             {de:"Fluktuation sauber definieren, bevor Sie sie messen. Die meisten Streitigkeiten entstehen hier.", en:"Define attrition properly before measuring it. Most disputes start here.", tag:"quick"},
+             {de:"Einen festen Platz für Personalzahlen in der Geschäftsführungsrunde reservieren.", en:"Reserve a fixed slot for people numbers in the leadership meeting.", tag:"quick"}],
+      scale:[{de:"Harte Zahlen mit einem kurzen Puls-Feedback verbinden, um Ursachen zu sehen.", en:"Connect hard numbers with a short pulse feedback to see causes.", tag:"project"},
+             {de:"Ein einfaches Dashboard, das sich selbst aktualisiert.", en:"A simple dashboard that updates itself.", tag:"project"},
+             {de:"Eine Entscheidung im Quartal bewusst an einer Zahl festmachen und das festhalten.", en:"Deliberately anchor one decision per quarter to a number, and record it.", tag:"quick"}]
+    }
+  }
+};
+
+const DEEPUI = {
+  de:{
+    offerLabel:"Vertiefung",
+    offerHeadWeak:(n)=>`Wollen Sie ${n} genauer anschauen?`,
+    offerHead:"Wollen Sie einen Bereich genauer anschauen?",
+    offerText:"Sechs weitere Aussagen und eine offene Frage zu einem Bereich Ihrer Wahl. Sie bekommen danach eine Detailauswertung mit konkreten Hebeln. Dauert etwa zwei Minuten.",
+    offerPick:"Bereich wählen",
+    offerStart:"Vertiefung starten",
+    recommended:"empfohlen",
+    deepHead:(n)=>`${n} im Detail`,
+    freeLabel:"Eine offene Frage, freiwillig",
+    freeHint:"Bleibt unbewertet. Ich lese es, bevor wir sprechen.",
+    deepSubmit:"Detailauswertung anzeigen",
+    deepErr:"Bitte beantworten Sie alle sechs Aussagen.",
+    deepBack:"Zurück zum Ergebnis",
+    subLabel:"Die drei Teilaspekte",
+    leverLabel:"Ihre nächsten Hebel",
+    teamLabel:"Drei Fragen für Ihr Führungsteam",
+    tagQuick:"Quick Win",
+    tagProject:"Projekt",
+    againHead:"Noch einen Bereich vertiefen?",
+    allDone:"Sie haben alle fünf Bereiche vertieft.",
+    oneDone:"Danke, das reicht mir für den Einstieg. Den Rest schauen wir uns im Gespräch an.",
+    deepScore:(v)=>v.toFixed(1).replace(".",",")+" / 4"
+  },
+  en:{
+    offerLabel:"Go deeper",
+    offerHeadWeak:(n)=>`Want to look at ${n} in detail?`,
+    offerHead:"Want to look at one area in detail?",
+    offerText:"Six more statements and one open question on an area of your choice. You then get a detailed read with concrete levers. Takes about two minutes.",
+    offerPick:"Choose an area",
+    offerStart:"Start the deep dive",
+    recommended:"recommended",
+    deepHead:(n)=>`${n} in detail`,
+    freeLabel:"One open question, optional",
+    freeHint:"It stays unscored. I read it before we speak.",
+    deepSubmit:"Show the detailed read",
+    deepErr:"Please answer all six statements.",
+    deepBack:"Back to the result",
+    subLabel:"The three sub-aspects",
+    leverLabel:"Your next levers",
+    teamLabel:"Three questions for your leadership team",
+    tagQuick:"Quick win",
+    tagProject:"Project",
+    againHead:"Go deeper on another area?",
+    allDone:"You have gone deep on all five areas.",
+    oneDone:"Thanks, that's enough to start from. We'll look at the rest in the call.",
+    deepScore:(v)=>v.toFixed(1)+" / 4"
+  }
+};
+
+/* ------------------------------------------------------------------
+   LOGIK
+   ------------------------------------------------------------------ */
+let lang = "de";
+let step = 0;                 // 0..4 = Dimensionen, 5 = Lead
+const answers = {};           // "D1-0" -> 1..4
+const contextText = {};       // dimId -> optionaler Kurzcheck-Freitext
+
+const $ = (id) => document.getElementById(id);
+
+// Wiederholungs-Schutz (Soft-Guard, pro Browser). localStorage kann im Wix-iFrame
+// gesperrt sein, deshalb alles in try/catch: schlaegt es fehl, greift der Guard einfach nicht.
+const LS_KEY = "hr_reifegrad_v2";
+function lsGet(){ try { const s = localStorage.getItem(LS_KEY); return s ? JSON.parse(s) : null; } catch(e){ return null; } }
+function lsSet(obj){ try { localStorage.setItem(LS_KEY, JSON.stringify(obj)); } catch(e){} }
+function restoreState(){
+  const saved = lsGet();
+  if (!saved || !saved.answers) return false;
+  const a = saved.answers;
+  const complete = DIMS.every(d => d.q.every((_,i)=> a[d.key+"-"+i]));
+  if (!complete) return false;
+  Object.assign(answers, a);
+  if (saved.contextText) Object.assign(contextText, saved.contextText);
+  if (saved.lang === "en" || saved.lang === "de"){
+    lang = saved.lang;
+    document.documentElement.lang = lang;
+    document.querySelectorAll(".langtoggle button").forEach(x=>x.setAttribute("aria-pressed", String(x.dataset.lang===lang)));
+  }
+  return true;
+}
+
+function stageOf(score){
+  if (score < 1.75) return 0;
+  if (score < 2.50) return 1;
+  if (score < 3.25) return 2;
+  return 3;
+}
+
+function evaluate(){
+  const dims = DIMS.map(d => {
+    const vals = d.q.map((_,i) => answers[d.key+"-"+i]);
+    const mean = vals.reduce((a,b)=>a+b,0)/vals.length;
+    return { id:d.id, key:d.key, mean, stage:stageOf(mean) };
+  });
+  const all = Object.values(answers);
+  const overallMean = all.reduce((a,b)=>a+b,0)/all.length;
+  const lowest = Math.min(...dims.map(d=>d.mean));
+  // Schwaechstes-Glied-Regel: der Gesamtreifegrad kann die schwaechste
+  // Dimension um hoechstens zwei Stufen ueberholen. Wer in vier Dimensionen
+  // stark ist und in einer bei null steht, ist nicht "strategisch".
+  const overallStage = Math.min(stageOf(overallMean), stageOf(lowest) + 2);
+  const weakest = dims
+    .slice()
+    .sort((a,b) => a.mean - b.mean || GAP_PRIORITY.indexOf(a.id) - GAP_PRIORITY.indexOf(b.id))[0];
+  return { dims, overallMean, overallStage, weakest };
+}
+
+function t(){ return UI[lang]; }
+
+function renderChrome(){
+  $("eyebrow").textContent = t().eyebrow;
+  $("title").textContent = t().title;
+  $("lede").textContent = t().lede;
+  $("metaline").innerHTML = t().meta.map(m=>`<span>${m}</span>`).join("");
+  $("back").textContent = t().back;
+  $("leadback").textContent = t().back;
+  $("leadhead").textContent = t().leadhead;
+  $("leadintro").textContent = t().leadintro;
+  $("l-first").textContent = t().lfirst;
+  $("l-last").textContent = t().llast;
+  $("l-email").innerHTML = t().lemail + '<span class="req">*</span>';
+  $("l-company").textContent = t().lcompany;
+  $("l-size").textContent = t().lsize;
+  $("l-role").textContent = t().lrole;
+  $("l-consent").innerHTML = t().consent + " " + t().privacyNote +
+    '<a href="' + CONFIG.privacyUrl[lang] + '" target="_blank" rel="noopener noreferrer">' +
+    t().privacyLink + "</a>.";
+  $("l-report").textContent = t().report;
+  $("f-report").closest(".consent").style.display = CONFIG.showReportCheckbox ? "" : "none";
+  $("leadsubmit").textContent = t().leadsubmit;
+  const sel = $("f-size"); const keep = sel.selectedIndex;
+  sel.innerHTML = t().sizes.map((s,i)=>`<option value="${i===0?"":s}">${s}</option>`).join("");
+  sel.selectedIndex = keep > 0 ? keep : 0;
+}
+
+function renderRail(){
+  const total = DIMS.length + 1;
+  $("rail").innerHTML = Array.from({length:total},(_,i)=>{
+    const state = i < step ? "done" : (i === step ? "current" : "todo");
+    return `<li data-state="${state}"></li>`;
+  }).join("");
+  $("railmeta").textContent = step < DIMS.length
+    ? t().railmeta(step+1, total, DIMS[step][lang].name)
+    : t().railmetaLead(total);
+}
+
+function renderStep(){
+  renderRail();
+  const onQuiz = step < DIMS.length;
+  $("quiz").hidden = !onQuiz;
+  $("lead").hidden = onQuiz;
+  $("result").hidden = true;
+  if (!onQuiz) return;
+
+  const d = DIMS[step];
+  $("dimhead").textContent = d[lang].name;
+  $("dimintro").textContent = d[lang].intro;
+  $("quizerr").textContent = "";
+  $("back").style.visibility = step === 0 ? "hidden" : "visible";
+  $("next").textContent = step === DIMS.length-1 ? t().toLead : t().next;
+
+  $("questions").innerHTML = d.q.map((q,i)=>{
+    const name = d.key+"-"+i;
+    const opts = SCALE[lang].map((label,j)=>{
+      const val = j+1;
+      const checked = answers[name] === val ? " checked" : "";
+      return `<label class="opt"><input type="radio" name="${name}" value="${val}"${checked}><span>${label}</span></label>`;
+    }).join("");
+    return `<fieldset><legend><span class="qno">${step+1}.${i+1}</span>${q[lang]}</legend><div class="opts">${opts}</div></fieldset>`;
+  }).join("");
+
+  $("questions").querySelectorAll("input[type=radio]").forEach(r=>{
+    r.addEventListener("change", e=>{
+      answers[e.target.name] = Number(e.target.value);
+      $("quizerr").textContent = "";
+    });
+  });
+
+  // Optionaler Freitext je Dimension
+  $("contextbox").hidden = false;
+  $("contextq").textContent = CONTEXT[d.id][lang];
+  $("contexthint").textContent = t().contextHint;
+  const ta = $("q-context");
+  ta.value = contextText[d.id] || "";
+  ta.oninput = () => { contextText[d.id] = ta.value; };
+
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
+function stepComplete(){
+  const d = DIMS[step];
+  return d.q.every((_,i)=> answers[d.key+"-"+i]);
+}
+
+$("next").addEventListener("click", ()=>{
+  if (!stepComplete()){ $("quizerr").textContent = t().quizerr; return; }
+  step++; renderStep();
+});
+$("back").addEventListener("click", ()=>{ if(step>0){ step--; renderStep(); } });
+$("leadback").addEventListener("click", ()=>{ step = DIMS.length-1; renderStep(); });
+
+document.querySelectorAll(".langtoggle button").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    lang = b.dataset.lang;
+    document.querySelectorAll(".langtoggle button").forEach(x=>x.setAttribute("aria-pressed", String(x===b)));
+    document.documentElement.lang = lang;
+    renderChrome();
+    if (!$("deepresult").hidden) renderDeepResult();
+    else if (!$("deepquiz").hidden) renderDeepQuiz();
+    else if (!$("result").hidden) renderResult(evaluate());
+    else renderStep();
+  });
+});
+
+function renderResult(r){
+  $("quiz").hidden = true; $("lead").hidden = true; $("result").hidden = false;
+  $("rail").innerHTML = Array.from({length:DIMS.length+1},()=>'<li data-state="done"></li>').join("");
+  $("railmeta").textContent = t().railmetaDone;
+  const st = STAGES[lang][r.overallStage];
+
+  $("stagelabel").textContent = t().stagelabel + " " + (r.overallStage+1) + "/4";
+  $("stagedots").innerHTML = [0,1,2,3].map(i=>`<i class="${i<=r.overallStage?"on":""}"></i>`).join("");
+  $("stagename").textContent = st.name;
+  $("stagedesc").textContent = st.desc;
+  $("stagestruct").textContent = st.struct;
+
+  $("profilelabel").textContent = t().profilelabel;
+  $("noteslabel").textContent = t().noteslabel;
+  $("gaplabel").textContent = t().gaplabel;
+
+  // Ein "engster Punkt" wird nur markiert, wenn die schwaechste Dimension
+  // wirklich Luft nach oben hat. Bei durchgehend hohen Werten waere das unehrlich.
+  const showGap = r.weakest.mean < 3.5;
+  document.querySelector(".gap").hidden = !showGap;
+
+  const ZONE = ["var(--s1)","var(--s2)","var(--s3)","var(--s4)"];
+  $("profile").innerHTML = r.dims.map(d=>{
+    const dim = DIMS.find(x=>x.id===d.id);
+    const isWeak = showGap && d.id === r.weakest.id;
+    // Ampel-Zonen: alle vier Zonen sichtbar, die erreichte Stufe hervorgehoben.
+    const meter = [0,1,2,3].map(i=>{
+      const here = i===d.stage;
+      return `<i style="background:${ZONE[i]};opacity:${here?"1":".22"}${here?";outline:1.5px solid var(--ink);outline-offset:0":""}"></i>`;
+    }).join("");
+    return `<div class="prow${isWeak?" weak":""}">
+      <div class="pname">${dim[lang].name}${isWeak?`<span class="tag">${t().weak}</span>`:""}</div>
+      <div class="meter" role="img" aria-label="${dim[lang].name}: ${t().scoreOf(d.mean)}">${meter}</div>
+      <div class="pscore">${t().scoreOf(d.mean)}</div>
+    </div>`;
+  }).join("");
+
+  $("notes").innerHTML = r.dims.map(d=>{
+    const dim = DIMS.find(x=>x.id===d.id);
+    const isWeak = showGap && d.id === r.weakest.id;
+    return `<div class="note${isWeak?" weak":""}">
+      <h3>${dim[lang].name}</h3>
+      <p>${NOTES[d.id][lang][d.stage]}</p>
+    </div>`;
+  }).join("");
+
+  const weakDim = DIMS.find(x=>x.id===r.weakest.id);
+  $("gapname").textContent = weakDim[lang].name;
+  $("gaptext").textContent = GAPTEXT[r.weakest.id][lang];
+
+  $("ctahead").textContent = t().ctahead;
+  $("ctatext").textContent = t().ctatext;
+  $("ctabtn").textContent = t().ctabtn;
+  $("ctabtn").href = CONFIG.bookingUrl;
+  $("ctahint").textContent = t().ctahint;
+  $("foot").textContent = t().foot;
+  lastResult = r;
+  renderDeepOffer();
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
+function buildPayload(r, event){
+  const fields = {
+    email: $("f-email").value.trim(),
+    firstname: $("f-first").value.trim(),
+    lastname: $("f-last").value.trim(),
+    company: $("f-company").value.trim(),
+    jobtitle: $("f-role").value.trim(),
+    company_size: $("f-size").value,
+    hr_maturity_stage: String(r.overallStage + 1),
+    hr_maturity_stage_name: STAGES[lang][r.overallStage].name,
+    hr_maturity_overall: r.overallMean.toFixed(2),
+    hr_maturity_weakest: r.weakest ? r.weakest.id : "",
+    hr_maturity_language: lang,
+    hr_maturity_wants_report: $("f-report").checked ? "true" : "false",
+    // Steuerung fuer das Make-Routing: "lead" beim Kurzcheck, "deep" bei Vertiefung
+    hr_event: event || "lead",
+    // DSGVO-Nachweis fuer die HubSpot-Notiz
+    consent: "true",
+    consent_text: UI[lang].consent,
+    consent_timestamp: new Date().toISOString(),
+    page_url: location.href
+  };
+  // Aufgeloeste Texte, damit Make Report/Notiz ohne eigene Logik bauen kann
+  fields["stage_desc"] = STAGES[lang][r.overallStage].desc;
+  if (r.weakest){
+    const wd = DIMS.find(d => d.id === r.weakest.id);
+    fields["weakest_name"] = wd ? wd[lang].name : r.weakest.id;
+    fields["weakest_gaptext"] = GAPTEXT[r.weakest.id][lang];
+  }
+  r.dims.forEach(d => {
+    fields["hr_maturity_" + d.id] = d.mean.toFixed(2);
+    fields["note_" + d.id] = NOTES[d.id][lang][d.stage];
+    // Kurzcheck-Freitext je Dimension (nur fuer Marcos Notiz/Report, nie im Lead-Report)
+    fields["hr_context_" + d.id] = (contextText[d.id] || "");
+  });
+  DIMS.forEach(d => d.q.forEach((_,i) => { fields["hr_q_" + d.key + "_" + (i+1)] = String(answers[d.key+"-"+i]); }));
+  // Vertiefungen, sofern der Nutzer welche gemacht hat
+  fields["hr_deep_areas"] = deepDone.join(",");
+  deepDone.forEach(id => {
+    const dd = evaluateDeep(id);
+    fields["hr_deep_" + id] = dd.mean.toFixed(2);
+    dd.groups.forEach((g,i) => { fields["hr_deep_" + id + "_g" + (i+1)] = g.mean.toFixed(2); });
+    if (deepFree[id]) fields["hr_deep_" + id + "_text"] = deepFree[id];
+  });
+  return fields;
+}
+
+async function send(fields){
+  if (CONFIG.mode === "hubspot"){
+    const host = CONFIG.hubspot.submitHost || "api.hsforms.com";
+    const url = `https://${host}/submissions/v3/integration/submit/${CONFIG.hubspot.portalId}/${CONFIG.hubspot.formGuid}`;
+    const body = {
+      fields: Object.entries(fields).map(([name,value])=>({objectTypeId:"0-1", name, value})),
+      context: { pageUri: location.href, pageName: document.title },
+      legalConsentOptions: { consent: {
+        consentToProcess: true,
+        text: UI[lang].consent,
+        communications: [{ value:true, subscriptionTypeId:0, text: UI[lang].consent }]
+      }}
+    };
+    const res = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+    if (!res.ok) throw new Error("HubSpot " + res.status);
+    return;
+  }
+  if (CONFIG.mode === "webhook"){
+    // Als application/x-www-form-urlencoded senden: CORS-safelisted (kein Preflight-OPTIONS)
+    // und von Make automatisch in benannte Felder geparst. URLSearchParams setzt den
+    // Content-Type selbst; keine custom Header.
+    const res = await fetch(CONFIG.webhookUrl, {method:"POST", body:new URLSearchParams(fields)});
+    if (!res.ok) throw new Error("Webhook " + res.status);
+    return;
+  }
+  console.log("[HR-Reifegrad-Check] Demo-Modus, es wurde nichts gesendet:", fields);
+}
+
+$("f-email").addEventListener("input", ()=>{ $("f-email").classList.remove("invalid"); });
+$("f-consent").addEventListener("change", ()=>{ $("f-consent").closest(".consent").classList.remove("invalid"); });
+
+async function submitLead(e){
+  if (e) e.preventDefault();
+  const email = $("f-email").value.trim();
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+  const consentOk = $("f-consent").checked;
+  $("f-email").classList.toggle("invalid", !emailOk);
+  $("f-consent").closest(".consent").classList.toggle("invalid", !consentOk);
+  if (!emailOk || !consentOk){
+    $("leaderr").textContent = !emailOk && !consentOk ? t().errBoth : (!emailOk ? t().errEmail : t().errConsent);
+    (!emailOk ? $("f-email") : $("f-consent")).focus();
+    $("leaderr").scrollIntoView({block:"center", behavior:"smooth"});
+    return;
+  }
+  $("leaderr").textContent = "";
+  const btn = $("leadsubmit");
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = t().sending;
+  const r = evaluate();
+  try { await send(buildPayload(r, "lead")); }
+  catch(err){ console.error(err); }   // Ergebnis wird trotzdem gezeigt
+  lsSet({ v:2, ts:Date.now(), lang, answers, contextText });   // Wiederholungs-Schutz
+  btn.disabled = false; btn.textContent = label;
+  renderResult(r);
+}
+
+// Zwei Wege in dieselbe Funktion: Klick auf den Button und Enter im Formular.
+// Der Klick ist der verlaessliche, weil sandboxed iframes das submit-Event
+// eines Formulars blockieren koennen.
+$("leadsubmit").addEventListener("click", submitLead);
+$("leadform").addEventListener("submit", submitLead);
+
+
+/* ------------------------------------------------------------------
+   VERTIEFUNG: Ablauf
+   ------------------------------------------------------------------ */
+let lastResult = null;      // Ergebnis des Kurzchecks
+let deepCurrent = null;     // id der gerade vertieften Dimension
+const deepAnswers = {};     // "strategie-0" -> 1..4
+const deepFree = {};        // "strategie" -> Freitext
+const deepDone = [];        // ids der abgeschlossenen Vertiefungen
+
+function dt(){ return DEEPUI[lang]; }
+
+function renderDeepOffer(){
+  const offer = $("deepoffer");
+  // Vertiefung ist bewusst auf einmal begrenzt: nach der ersten Vertiefung keine
+  // weitere Offerte mehr.
+  if (deepDone.length >= 1){
+    offer.innerHTML = `<p class="section-label">${dt().offerLabel}</p><p class="deepdone">${dt().oneDone}</p>`;
+    return;
+  }
+  const remaining = DIMS.filter(d => !deepDone.includes(d.id));
+  if (!remaining.length){
+    offer.innerHTML = `<p class="section-label">${dt().offerLabel}</p><p class="deepdone">${dt().allDone}</p>`;
+    return;
+  }
+  const suggest = lastResult && !deepDone.includes(lastResult.weakest.id) && lastResult.weakest.mean < 3.5
+    ? lastResult.weakest.id : remaining[0].id;
+  const head = deepDone.length
+    ? dt().againHead
+    : (suggest === (lastResult && lastResult.weakest.id) && lastResult.weakest.mean < 3.5
+        ? dt().offerHeadWeak(DIMS.find(d=>d.id===suggest)[lang].name)
+        : dt().offerHead);
+
+  offer.innerHTML = `
+    <p class="section-label">${dt().offerLabel}</p>
+    <h3>${head}</h3>
+    <p class="deeptext">${dt().offerText}</p>
+    <div class="deeppick">
+      <select id="deepselect" aria-label="${dt().offerPick}">
+        ${remaining.map(d=>`<option value="${d.id}"${d.id===suggest?" selected":""}>${d[lang].name}${d.id===suggest&&!deepDone.length?" ("+dt().recommended+")":""}</option>`).join("")}
+      </select>
+      <button type="button" class="btn" id="deepstart">${dt().offerStart}</button>
+    </div>`;
+  $("deepstart").addEventListener("click", ()=>{
+    deepCurrent = $("deepselect").value;
+    renderDeepQuiz();
+  });
+}
+
+function renderDeepQuiz(){
+  $("result").hidden = true; $("deepresult").hidden = true; $("deepquiz").hidden = false;
+  const dim = DIMS.find(d=>d.id===deepCurrent);
+  const deep = DEEP[deepCurrent];
+  $("deepquizhead").textContent = dt().deepHead(dim[lang].name);
+  $("deepquizintro").textContent = dim[lang].intro;
+  $("deeperr").textContent = "";
+
+  let n = 0;
+  $("deepquestions").innerHTML = deep.groups.map((g,gi)=>{
+    const items = g.q.map((q,qi)=>{
+      n++;
+      const name = `${deepCurrent}-${gi*2+qi}`;
+      const opts = SCALE[lang].map((label,j)=>{
+        const val = j+1;
+        const checked = deepAnswers[name] === val ? " checked" : "";
+        return `<label class="opt"><input type="radio" name="${name}" value="${val}"${checked}><span>${label}</span></label>`;
+      }).join("");
+      return `<fieldset><legend><span class="qno">${n}</span>${q[lang]}</legend><div class="opts">${opts}</div></fieldset>`;
+    }).join("");
+    return `<p class="groupname">${g.name[lang]}</p>${items}`;
+  }).join("");
+
+  $("deepquestions").querySelectorAll("input[type=radio]").forEach(r=>{
+    r.addEventListener("change", e=>{ deepAnswers[e.target.name] = Number(e.target.value); $("deeperr").textContent=""; });
+  });
+
+  $("deepfreelabel").textContent = dt().freeLabel;
+  $("deepfreeq").textContent = deep.free[lang];
+  $("deepfreehint").textContent = dt().freeHint;
+  $("deepfree").value = deepFree[deepCurrent] || "";
+  $("deepcancel").textContent = dt().deepBack;
+  $("deepsubmit").textContent = dt().deepSubmit;
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
+function evaluateDeep(id){
+  const deep = DEEP[id];
+  const groups = deep.groups.map((g,gi)=>{
+    const a = deepAnswers[`${id}-${gi*2}`], b = deepAnswers[`${id}-${gi*2+1}`];
+    const mean = (a+b)/2;
+    // Schwelle bewusst bei 3,0: ein Teilaspekt "traegt" erst, wenn beide
+    // Aussagen mindestens weitgehend zutreffen. Bei 2,5 waere das geschmeichelt.
+    return { name:g.name, mean, carries: mean >= 3, text: mean >= 3 ? g.high : g.low };
+  });
+  const mean = groups.reduce((s,g)=>s+g.mean,0)/groups.length;
+  return { id, groups, mean, band: mean < 3 ? "build" : "scale" };
+}
+
+function renderDeepResult(){
+  const d = evaluateDeep(deepCurrent);
+  const dim = DIMS.find(x=>x.id===deepCurrent);
+  const deep = DEEP[deepCurrent];
+  $("result").hidden = true; $("deepquiz").hidden = true; $("deepresult").hidden = false;
+
+  const ZONE = ["var(--s1)","var(--s2)","var(--s3)","var(--s4)"];
+
+  $("deepresulthead").textContent = dt().deepHead(dim[lang].name);
+  $("deepresultscore").textContent = dt().deepScore(d.mean);
+  $("deepsublabel").textContent = dt().subLabel;
+  $("deepsubs").innerHTML = d.groups.map(g=>`
+    <div class="subrow${g.carries?"":" weakish"}">
+      <div class="subhead">
+        <span class="subname">${g.name[lang]}</span>
+        <span class="subscore">${dt().deepScore(g.mean)}</span>
+      </div>
+      <div class="meter">${[0,1,2,3].map(i=>{const here=i===stageOf(g.mean);return `<i style="background:${ZONE[i]};opacity:${here?"1":".22"}${here?";outline:1.5px solid var(--ink);outline-offset:0":""}"></i>`;}).join("")}</div>
+      <p>${g.text[lang]}</p>
+    </div>`).join("");
+
+  $("deepleverlabel").textContent = dt().leverLabel;
+  $("deeplevers").innerHTML = deep.levers[d.band].map(l=>`
+    <li><span class="tag ${l.tag}">${l.tag==="quick"?dt().tagQuick:dt().tagProject}</span>${l[lang]}</li>`).join("");
+
+  $("deepteamlabel").textContent = dt().teamLabel;
+  $("deepteam").innerHTML = deep.teamq[lang].map(q=>`<li>${q}</li>`).join("");
+
+  $("deepctahead").textContent = t().ctahead;
+  $("deepctatext").textContent = t().ctatext;
+  $("deepctabtn").textContent = t().ctabtn;
+  $("deepctabtn").href = CONFIG.bookingUrl;
+  $("deepctahint").textContent = t().ctahint;
+  $("deepback").textContent = dt().deepBack;
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
+$("deepsubmit").addEventListener("click", async ()=>{
+  const deep = DEEP[deepCurrent];
+  const complete = deep.groups.every((g,gi)=> deepAnswers[`${deepCurrent}-${gi*2}`] && deepAnswers[`${deepCurrent}-${gi*2+1}`]);
+  if (!complete){ $("deeperr").textContent = dt().deepErr; return; }
+  deepFree[deepCurrent] = $("deepfree").value.trim();
+  if (!deepDone.includes(deepCurrent)) deepDone.push(deepCurrent);
+  // Nachmeldung an HubSpot bzw. Make: gleiche E-Mail, ergaenzte Felder.
+  try { await send(buildPayload(lastResult, "deep")); } catch(err){ console.error(err); }
+  renderDeepResult();
+});
+
+$("deepcancel").addEventListener("click", ()=>{
+  $("deepquiz").hidden = true; $("result").hidden = false;
+  renderDeepOffer();
+  window.scrollTo({top:0, behavior:"smooth"});
+});
+
+$("deepback").addEventListener("click", ()=>{
+  $("deepresult").hidden = true; $("result").hidden = false;
+  renderDeepOffer();
+  window.scrollTo({top:0, behavior:"smooth"});
+});
+
+// Wiederholungs-Schutz: hat dieser Browser den Check schon gemacht, direkt das
+// gespeicherte Ergebnis zeigen statt eines neuen Durchlaufs.
+const restored = restoreState();
+renderChrome();
+if (restored) renderResult(evaluate());
+else renderStep();
+</script>
+
+</body>
+</html>
