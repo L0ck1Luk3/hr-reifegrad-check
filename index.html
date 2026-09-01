@@ -4,9 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>HR-Reifegrad-Check mit Vertiefung</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<!-- Cloudflare Turnstile (Bot-Schutz; serverseitig in Make verifiziert) -->
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<style>
+/* Selbst gehostete Fonts (DSGVO: kein Request an Google-CDN, keine IP-Uebertragung).
+   Work Sans + Source Serif 4 sind Variable Fonts (eine WOFF2 deckt den Gewichtsbereich ab). */
+@font-face{font-family:'Work Sans';font-style:normal;font-weight:300 600;font-display:swap;src:url(fonts/worksans-var.woff2) format('woff2');}
+@font-face{font-family:'Source Serif 4';font-style:normal;font-weight:400 600;font-display:swap;src:url(fonts/sourceserif4-var.woff2) format('woff2');}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/ibmplexmono-400.woff2) format('woff2');}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-display:swap;src:url(fonts/ibmplexmono-500.woff2) format('woff2');}
+</style>
 
 <style>
 :root{
@@ -357,6 +364,7 @@ legend .qno{
       </div>
       <label class="consent"><input type="checkbox" id="f-consent" required><span id="l-consent"></span></label>
       <label class="consent"><input type="checkbox" id="f-report"><span id="l-report"></span></label>
+      <div class="cf-turnstile" data-sitekey="0x4AAAAAAEj_vFH7rI0u42SK" data-appearance="interaction-only" style="margin-top:14px"></div>
       <p class="err" id="leaderr"></p>
       <div class="nav">
         <button type="button" class="btn btn-ghost" id="leadback"></button>
@@ -475,7 +483,10 @@ const CONFIG = {
                 en: "https://www.marcomansfeld.com/en/privacy-policy" },
   // Report-Checkbox. In der Make-Version verschickt Make den Report, daher sichtbar.
   // Das Feld hr_maturity_wants_report wird weiter mitgesendet.
-  showReportCheckbox: true
+  showReportCheckbox: true,
+  // Cloudflare-Turnstile Site-Key (oeffentlich). Muss mit dem data-sitekey im Formular
+  // uebereinstimmen. Secret-Key liegt NUR in Make (HTTP-Verify-Modul), nie hier.
+  turnstileSiteKey: "0x4AAAAAAEj_vFH7rI0u42SK"
 };
 
 /* ------------------------------------------------------------------
@@ -679,6 +690,7 @@ const UI = {
     leadsubmit:"Ergebnis anzeigen",
     errEmail:"Bitte tragen Sie eine gültige E-Mail-Adresse ein.",
     errConsent:"Bitte setzen Sie noch das Häkchen bei der Einwilligung, dann geht es weiter.",
+    tsError:"Kurze Sicherheitsprüfung läuft noch. Bitte einen Moment warten und erneut auf Absenden tippen.",
     errBoth:"Bitte tragen Sie eine gültige E-Mail-Adresse ein und setzen Sie das Häkchen bei der Einwilligung.",
     sending:"Wird gesendet …",
     stagelabel:"Reifegrad", profilelabel:"Ihr Reifegradprofil", noteslabel:"Was das je Dimension heißt",
@@ -709,6 +721,7 @@ const UI = {
     leadsubmit:"Show my result",
     errEmail:"Please enter a valid email address.",
     errConsent:"Please tick the consent box, then you're good to go.",
+    tsError:"The quick security check is still running. Please wait a moment and tap submit again.",
     errBoth:"Please enter a valid email address and tick the consent box.",
     sending:"Sending …",
     stagelabel:"Maturity", profilelabel:"Your maturity profile", noteslabel:"What this means per dimension",
@@ -1262,6 +1275,8 @@ function buildPayload(r, event){
     hr_maturity_weakest: r.weakest ? r.weakest.id : "",
     hr_maturity_language: lang,
     hr_maturity_wants_report: $("f-report").checked ? "true" : "false",
+    // Cloudflare-Turnstile-Token (in Make serverseitig verifiziert). Leer, wenn Widget nicht bereit.
+    cf_turnstile: (window.turnstile ? (turnstile.getResponse() || "") : ""),
     // Steuerung fuer das Make-Routing: "lead" beim Kurzcheck, "deep" bei Vertiefung
     hr_event: event || "lead",
     // DSGVO-Nachweis fuer die HubSpot-Notiz
@@ -1339,6 +1354,12 @@ async function submitLead(e){
     $("leaderr").scrollIntoView({block:"center", behavior:"smooth"});
     return;
   }
+  // Bot-Schutz: im Live-Modus muss ein gueltiger Turnstile-Token vorliegen (in Make verifiziert).
+  if (CONFIG.mode === "webhook" && !(window.turnstile && turnstile.getResponse())){
+    $("leaderr").textContent = t().tsError;
+    $("leaderr").scrollIntoView({block:"center", behavior:"smooth"});
+    return;
+  }
   $("leaderr").textContent = "";
   const btn = $("leadsubmit");
   const label = btn.textContent;
@@ -1346,6 +1367,7 @@ async function submitLead(e){
   const r = evaluate();
   try { await send(buildPayload(r, "lead")); }
   catch(err){ console.error(err); }   // Ergebnis wird trotzdem gezeigt
+  try { if (window.turnstile) turnstile.reset(); } catch(err){}   // frischen Token fuer evtl. Vertiefung
   lsSet({ v:2, ts:Date.now(), lang, answers, contextText });   // Wiederholungs-Schutz
   btn.disabled = false; btn.textContent = label;
   renderResult(r);
@@ -1496,10 +1518,15 @@ $("deepsubmit").addEventListener("click", async ()=>{
   const deep = DEEP[deepCurrent];
   const complete = deep.groups.every((g,gi)=> deepAnswers[`${deepCurrent}-${gi*2}`] && deepAnswers[`${deepCurrent}-${gi*2+1}`]);
   if (!complete){ $("deeperr").textContent = dt().deepErr; return; }
+  // Bot-Schutz auch fuer die Vertiefungs-Nachmeldung (im Live-Modus).
+  if (CONFIG.mode === "webhook" && !(window.turnstile && turnstile.getResponse())){
+    $("deeperr").textContent = t().tsError; return;
+  }
   deepFree[deepCurrent] = $("deepfree").value.trim();
   if (!deepDone.includes(deepCurrent)) deepDone.push(deepCurrent);
   // Nachmeldung an HubSpot bzw. Make: gleiche E-Mail, ergaenzte Felder.
   try { await send(buildPayload(lastResult, "deep")); } catch(err){ console.error(err); }
+  try { if (window.turnstile) turnstile.reset(); } catch(err){}
   renderDeepResult();
 });
 
