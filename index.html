@@ -364,7 +364,9 @@ legend .qno{
       </div>
       <label class="consent"><input type="checkbox" id="f-consent" required><span id="l-consent"></span></label>
       <label class="consent"><input type="checkbox" id="f-report"><span id="l-report"></span></label>
-      <div class="cf-turnstile" data-sitekey="0x4AAAAAAEj_vFH7rI0u42SK" data-appearance="interaction-only" style="margin-top:14px"></div>
+      <!-- data-refresh-expired="auto" ist der Default, hier bewusst explizit: der Sendeweg
+           verlaesst sich darauf, dass Turnstile abgelaufene Token selbst erneuert. -->
+      <div class="cf-turnstile" data-sitekey="0x4AAAAAAEj_vFH7rI0u42SK" data-appearance="interaction-only" data-refresh-expired="auto" style="margin-top:14px"></div>
       <p class="err" id="leaderr"></p>
       <div class="nav">
         <button type="button" class="btn btn-ghost" id="leadback"></button>
@@ -1401,18 +1403,24 @@ async function submitLead(e){
   renderBridge(lastResult);
 }
 
-// Holt unmittelbar vor dem Senden einen frischen Turnstile-Token. Noetig, weil Token
-// nach 300 s ablaufen und Einweg sind — zwischen Seitenaufruf und Absenden liegen mit
-// Vertiefung leicht mehr als fuenf Minuten.
+// Token unmittelbar vor dem Senden holen.
+// WICHTIG: NICHT blind turnstile.reset() aufrufen. Das verwirft einen gueltigen Token und
+// die neue Challenge ist nicht garantiert rechtzeitig fertig — genau daran ist der Testlauf
+// vom 09.09. gescheitert. Turnstile erneuert abgelaufene Token selbst, weil
+// data-refresh-expired per Default auf "auto" steht. Also: vorhandenen Token verwenden und
+// nur dann eine neue Challenge anstossen, wenn wirklich keiner da ist.
 function freshToken(timeoutMs){
   return new Promise(resolve=>{
     if (!window.turnstile){ resolve(""); return; }
+    let tok = "";
+    try { tok = turnstile.getResponse() || ""; } catch(e){}
+    if (tok) return resolve(tok);
     try { turnstile.reset(); } catch(e){ resolve(""); return; }
     const started = Date.now();
     (function poll(){
-      let tok = "";
-      try { tok = turnstile.getResponse() || ""; } catch(e){}
-      if (tok) return resolve(tok);
+      let t2 = "";
+      try { t2 = turnstile.getResponse() || ""; } catch(e){}
+      if (t2) return resolve(t2);
       if (Date.now() - started > timeoutMs) return resolve("");
       setTimeout(poll, 200);
     })();
