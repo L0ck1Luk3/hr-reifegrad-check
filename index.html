@@ -373,6 +373,23 @@ legend .qno{
     </form>
   </section>
 
+  <!-- ZWISCHENSCHRITT: Vertiefung anbieten, BEVOR das Ergebnis erscheint.
+       Beide Wege enden in genau einer Uebertragung an Make. -->
+  <section id="bridge" class="card" hidden>
+    <p class="section-label" id="bridgelabel"></p>
+    <h2 class="dimhead" id="bridgehead"></h2>
+    <p class="dimintro" id="bridgeintro"></p>
+    <div class="deeppick">
+      <select id="bridgeselect" aria-label=""></select>
+      <button type="button" class="btn" id="bridgestart"></button>
+    </div>
+    <p class="err" id="bridgeerr"></p>
+    <div class="nav">
+      <button type="button" class="btn btn-ghost" id="bridgeskip"></button>
+    </div>
+    <p class="hint" id="bridgehint"></p>
+  </section>
+
   <!-- RESULT -->
   <section id="result" hidden>
     <div class="verdict">
@@ -994,6 +1011,12 @@ const DEEPUI = {
     offerPick:"Bereich wählen",
     offerStart:"Vertiefung starten",
     recommended:"empfohlen",
+    bridgeLabel:"Fast geschafft",
+    bridgeHead:"Ihre Auswertung steht.",
+    bridgeHeadWeak:(n)=>`Ihre Auswertung steht — auffällig ist ${n}.`,
+    bridgeIntro:"Bevor Sie sie sehen: Zu einem Bereich kann ich deutlich konkreter werden. Sechs weitere Aussagen und eine offene Frage, etwa zwei Minuten. Sie bekommen dann zusätzlich konkrete Hebel für diesen Bereich.",
+    bridgeSkip:"Ergebnis ohne Vertiefung anzeigen",
+    bridgeHint:"Beide Wege führen direkt zu Ihrem Ergebnis.",
     deepHead:(n)=>`${n} im Detail`,
     freeLabel:"Eine offene Frage, freiwillig",
     freeHint:"Bleibt unbewertet. Ich lese es, bevor wir sprechen.",
@@ -1018,6 +1041,12 @@ const DEEPUI = {
     offerPick:"Choose an area",
     offerStart:"Start the deep dive",
     recommended:"recommended",
+    bridgeLabel:"Almost there",
+    bridgeHead:"Your assessment is ready.",
+    bridgeHeadWeak:(n)=>`Your assessment is ready — ${n} stands out.`,
+    bridgeIntro:"Before you see it: there is one area where I can get much more specific. Six more statements and one open question, about two minutes. You then also get concrete levers for that area.",
+    bridgeSkip:"Show my result without the deep dive",
+    bridgeHint:"Both paths take you straight to your result.",
     deepHead:(n)=>`${n} in detail`,
     freeLabel:"One open question, optional",
     freeHint:"It stays unscored. I read it before we speak.",
@@ -1201,7 +1230,7 @@ document.querySelectorAll(".langtoggle button").forEach(b=>{
 });
 
 function renderResult(r){
-  $("quiz").hidden = true; $("lead").hidden = true; $("result").hidden = false;
+  $("quiz").hidden = true; $("lead").hidden = true; $("bridge").hidden = true; $("result").hidden = false;
   $("rail").innerHTML = Array.from({length:DIMS.length+1},()=>'<li data-state="done"></li>').join("");
   $("railmeta").textContent = t().railmetaDone;
   const st = STAGES[lang][r.overallStage];
@@ -1257,11 +1286,13 @@ function renderResult(r){
   $("ctahint").textContent = t().ctahint;
   $("foot").textContent = t().foot;
   lastResult = r;
-  renderDeepOffer();
+  // Nach dem Ergebnis wird nicht mehr vertieft: die Offerte kam bereits davor, und es
+  // gibt pro Durchlauf genau eine Uebertragung. Nur der Abschlusshinweis bleibt.
+  if (deepDone.length) renderDeepOffer(); else $("deepoffer").innerHTML = "";
   window.scrollTo({top:0, behavior:"smooth"});
 }
 
-function buildPayload(r, event){
+function buildPayload(r, event, token){
   const fields = {
     email: $("f-email").value.trim(),
     firstname: $("f-first").value.trim(),
@@ -1275,8 +1306,9 @@ function buildPayload(r, event){
     hr_maturity_weakest: r.weakest ? r.weakest.id : "",
     hr_maturity_language: lang,
     hr_maturity_wants_report: $("f-report").checked ? "true" : "false",
-    // Cloudflare-Turnstile-Token (in Make serverseitig verifiziert). Leer, wenn Widget nicht bereit.
-    cf_turnstile: (window.turnstile ? (turnstile.getResponse() || "") : ""),
+    // Cloudflare-Turnstile-Token (in Make serverseitig verifiziert). Wird unmittelbar vor dem
+    // Senden frisch geholt (Token laufen nach 300 s ab und sind Einweg), sonst Fallback.
+    cf_turnstile: (typeof token === "string" ? token : (window.turnstile ? (turnstile.getResponse() || "") : "")),
     // Steuerung fuer das Make-Routing: "lead" beim Kurzcheck, "deep" bei Vertiefung
     hr_event: event || "lead",
     // DSGVO-Nachweis fuer die HubSpot-Notiz
@@ -1354,23 +1386,69 @@ async function submitLead(e){
     $("leaderr").scrollIntoView({block:"center", behavior:"smooth"});
     return;
   }
-  // Bot-Schutz: im Live-Modus muss ein gueltiger Turnstile-Token vorliegen (in Make verifiziert).
+  // Frueher Bot-Schutz-Check: laeuft Turnstile ueberhaupt? Der eigentliche, frische Token
+  // wird erst unmittelbar vor dem Senden geholt (Token laufen nach 300 s ab).
   if (CONFIG.mode === "webhook" && !(window.turnstile && turnstile.getResponse())){
     $("leaderr").textContent = t().tsError;
     $("leaderr").scrollIntoView({block:"center", behavior:"smooth"});
     return;
   }
   $("leaderr").textContent = "";
-  const btn = $("leadsubmit");
-  const label = btn.textContent;
-  btn.disabled = true; btn.textContent = t().sending;
-  const r = evaluate();
-  try { await send(buildPayload(r, "lead")); }
+  // Hier wird bewusst NOCH NICHT gesendet: erst kommt die Vertiefungs-Offerte, danach
+  // genau eine Uebertragung (mit oder ohne Vertiefungsdaten). Die Formularwerte bleiben
+  // im DOM erhalten, auch wenn der Abschnitt ausgeblendet ist.
+  lastResult = evaluate();
+  renderBridge(lastResult);
+}
+
+// Holt unmittelbar vor dem Senden einen frischen Turnstile-Token. Noetig, weil Token
+// nach 300 s ablaufen und Einweg sind — zwischen Seitenaufruf und Absenden liegen mit
+// Vertiefung leicht mehr als fuenf Minuten.
+function freshToken(timeoutMs){
+  return new Promise(resolve=>{
+    if (!window.turnstile){ resolve(""); return; }
+    try { turnstile.reset(); } catch(e){ resolve(""); return; }
+    const started = Date.now();
+    (function poll(){
+      let tok = "";
+      try { tok = turnstile.getResponse() || ""; } catch(e){}
+      if (tok) return resolve(tok);
+      if (Date.now() - started > timeoutMs) return resolve("");
+      setTimeout(poll, 200);
+    })();
+  });
+}
+
+// Genau EINE Uebertragung pro Durchlauf: entweder nach der Vertiefung oder direkt nach
+// dem Kurzcheck. Enthaelt in beiden Faellen alles bis dahin Bekannte.
+async function finalizeAndSend(){
+  const r = lastResult || evaluate();
+  let token;
+  if (CONFIG.mode === "webhook") token = await freshToken(8000);
+  try { await send(buildPayload(r, "lead", token)); }
   catch(err){ console.error(err); }   // Ergebnis wird trotzdem gezeigt
-  try { if (window.turnstile) turnstile.reset(); } catch(err){}   // frischen Token fuer evtl. Vertiefung
-  lsSet({ v:2, ts:Date.now(), lang, answers, contextText });   // Wiederholungs-Schutz
-  btn.disabled = false; btn.textContent = label;
-  renderResult(r);
+  lsSet({ v:2, ts:Date.now(), lang, answers, contextText, sent:true });
+}
+
+function renderBridge(r){
+  $("quiz").hidden = true; $("lead").hidden = true; $("result").hidden = true;
+  $("deepquiz").hidden = true; $("deepresult").hidden = true;
+  $("bridge").hidden = false;
+  const weak = (r.weakest && r.weakest.mean < 3.5) ? r.weakest.id : null;
+  const wdim = weak ? DIMS.find(d=>d.id===weak) : null;
+  $("bridgelabel").textContent = dt().bridgeLabel;
+  $("bridgehead").textContent = wdim ? dt().bridgeHeadWeak(wdim[lang].name) : dt().bridgeHead;
+  $("bridgeintro").textContent = dt().bridgeIntro;
+  $("bridgeerr").textContent = "";
+  const suggest = weak || DIMS[0].id;
+  const sel = $("bridgeselect");
+  sel.setAttribute("aria-label", dt().offerPick);
+  sel.innerHTML = DIMS.map(d=>
+    `<option value="${d.id}"${d.id===suggest?" selected":""}>${d[lang].name}${d.id===suggest?" ("+dt().recommended+")":""}</option>`).join("");
+  $("bridgestart").textContent = dt().offerStart;
+  $("bridgeskip").textContent = dt().bridgeSkip;
+  $("bridgehint").textContent = dt().bridgeHint;
+  window.scrollTo({top:0, behavior:"smooth"});
 }
 
 // Zwei Wege in dieselbe Funktion: Klick auf den Button und Enter im Formular.
@@ -1378,6 +1456,21 @@ async function submitLead(e){
 // eines Formulars blockieren koennen.
 $("leadsubmit").addEventListener("click", submitLead);
 $("leadform").addEventListener("submit", submitLead);
+
+// Zwischenschritt: Vertiefung starten ODER direkt zum Ergebnis. Beide Wege enden in
+// genau einer Uebertragung — der "beenden"-Weg sendet hier, der Vertiefungs-Weg am Ende.
+$("bridgestart").addEventListener("click", ()=>{
+  deepCurrent = $("bridgeselect").value;
+  renderDeepQuiz();
+});
+$("bridgeskip").addEventListener("click", async ()=>{
+  const btn = $("bridgeskip");
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = t().sending;
+  await finalizeAndSend();
+  btn.disabled = false; btn.textContent = label;
+  renderResult(lastResult);
+});
 
 
 /* ------------------------------------------------------------------
@@ -1429,7 +1522,7 @@ function renderDeepOffer(){
 }
 
 function renderDeepQuiz(){
-  $("result").hidden = true; $("deepresult").hidden = true; $("deepquiz").hidden = false;
+  $("result").hidden = true; $("deepresult").hidden = true; $("bridge").hidden = true; $("deepquiz").hidden = false;
   const dim = DIMS.find(d=>d.id===deepCurrent);
   const deep = DEEP[deepCurrent];
   $("deepquizhead").textContent = dt().deepHead(dim[lang].name);
@@ -1524,16 +1617,20 @@ $("deepsubmit").addEventListener("click", async ()=>{
   }
   deepFree[deepCurrent] = $("deepfree").value.trim();
   if (!deepDone.includes(deepCurrent)) deepDone.push(deepCurrent);
-  // Nachmeldung an HubSpot bzw. Make: gleiche E-Mail, ergaenzte Felder.
-  try { await send(buildPayload(lastResult, "deep")); } catch(err){ console.error(err); }
-  try { if (window.turnstile) turnstile.reset(); } catch(err){}
+  // Die EINE Uebertragung des Durchlaufs — enthaelt Kurzcheck UND Vertiefung.
+  const btn = $("deepsubmit");
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = t().sending;
+  await finalizeAndSend();
+  btn.disabled = false; btn.textContent = label;
   renderDeepResult();
 });
 
+// Abbruch der Vertiefung: zurueck zur Offerte, NICHT zum Ergebnis — gesendet wurde
+// an dieser Stelle noch nichts.
 $("deepcancel").addEventListener("click", ()=>{
-  $("deepquiz").hidden = true; $("result").hidden = false;
-  renderDeepOffer();
-  window.scrollTo({top:0, behavior:"smooth"});
+  $("deepquiz").hidden = true;
+  renderBridge(lastResult);
 });
 
 $("deepback").addEventListener("click", ()=>{
