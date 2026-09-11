@@ -1294,6 +1294,10 @@ function renderResult(r){
   window.scrollTo({top:0, behavior:"smooth"});
 }
 
+// Ampel-Zonen als feste Hex-Werte, identisch zu --s1..--s4 im Stylesheet. Gehen an Make,
+// damit die Report-Mail dieselben Farben nutzt (E-Mails kennen keine CSS-Variablen).
+const ZONE_HEX = ["#B25B4A","#CD9A5B","#9DB8A6","#61876E"];
+
 function buildPayload(r, event, token){
   const fields = {
     email: $("f-email").value.trim(),
@@ -1321,6 +1325,9 @@ function buildPayload(r, event, token){
   };
   // Aufgeloeste Texte, damit Make Report/Notiz ohne eigene Logik bauen kann
   fields["stage_desc"] = STAGES[lang][r.overallStage].desc;
+  fields["stage_struct"] = STAGES[lang][r.overallStage].struct;
+  fields["pct_overall"] = String(Math.round(r.overallMean / 4 * 100));
+  fields["color_overall"] = ZONE_HEX[r.overallStage];
   if (r.weakest){
     const wd = DIMS.find(d => d.id === r.weakest.id);
     fields["weakest_name"] = wd ? wd[lang].name : r.weakest.id;
@@ -1328,6 +1335,8 @@ function buildPayload(r, event, token){
   }
   r.dims.forEach(d => {
     fields["hr_maturity_" + d.id] = d.mean.toFixed(2);
+    fields["pct_" + d.id] = String(Math.round(d.mean / 4 * 100));
+    fields["color_" + d.id] = ZONE_HEX[d.stage];
     fields["note_" + d.id] = NOTES[d.id][lang][d.stage];
     // Kurzcheck-Freitext je Dimension (nur fuer Marcos Notiz/Report, nie im Lead-Report)
     fields["hr_context_" + d.id] = (contextText[d.id] || "");
@@ -1335,12 +1344,40 @@ function buildPayload(r, event, token){
   DIMS.forEach(d => d.q.forEach((_,i) => { fields["hr_q_" + d.key + "_" + (i+1)] = String(answers[d.key+"-"+i]); }));
   // Vertiefungen, sofern der Nutzer welche gemacht hat
   fields["hr_deep_areas"] = deepDone.join(",");
+  // Eindeutiges Flag fuer das Make-Routing. Ein Vergleich auf Leerstring waere dort
+  // mehrdeutig, deshalb wird der Fall hier explizit entschieden.
+  fields["has_deep"] = deepDone.length ? "true" : "false";
   deepDone.forEach(id => {
     const dd = evaluateDeep(id);
     fields["hr_deep_" + id] = dd.mean.toFixed(2);
     dd.groups.forEach((g,i) => { fields["hr_deep_" + id + "_g" + (i+1)] = g.mean.toFixed(2); });
     if (deepFree[id]) fields["hr_deep_" + id + "_text"] = deepFree[id];
   });
+  // Aufgeloeste Vertiefungs-Inhalte fuer die Report-Mail. Ohne diese Felder kann Make die
+  // Vertiefung nicht darstellen - die Texte stehen nur hier im Tool.
+  if (deepDone.length){
+    const did = deepDone[0];
+    const dd = evaluateDeep(did);
+    const ddim = DIMS.find(x => x.id === did);
+    fields["deep_name"] = ddim ? ddim[lang].name : did;
+    fields["deep_score"] = dt().deepScore(dd.mean);
+    fields["deep_pct"] = String(Math.round(dd.mean / 4 * 100));
+    fields["deep_color"] = ZONE_HEX[stageOf(dd.mean)];
+    dd.groups.forEach((g,i) => {
+      const n = i + 1;
+      fields["deep_g" + n + "_name"] = g.name[lang];
+      fields["deep_g" + n + "_score"] = dt().deepScore(g.mean);
+      fields["deep_g" + n + "_pct"] = String(Math.round(g.mean / 4 * 100));
+      fields["deep_g" + n + "_color"] = ZONE_HEX[stageOf(g.mean)];
+      fields["deep_g" + n + "_text"] = g.text[lang];
+    });
+    DEEP[did].levers[dd.band].forEach((l,i) => {
+      const n = i + 1;
+      fields["deep_l" + n + "_tag"] = l.tag === "quick" ? dt().tagQuick : dt().tagProject;
+      fields["deep_l" + n + "_text"] = l[lang];
+    });
+    DEEP[did].teamq[lang].forEach((q,i) => { fields["deep_tq" + (i+1)] = q; });
+  }
   return fields;
 }
 
