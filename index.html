@@ -1710,9 +1710,12 @@ $("deepcancel").addEventListener("click", ()=>{
 });
 
 $("deepback").addEventListener("click", ()=>{
-  $("deepresult").hidden = true; $("result").hidden = false;
-  renderDeepOffer();
-  window.scrollTo({top:0, behavior:"smooth"});
+  // Die Ergebnis-Sektion muss hier neu aufgebaut werden. Im aktuellen Ablauf
+  // (Lead -> Bridge -> Vertiefung) wurde sie nie gerendert, ein blosses Einblenden
+  // zeigte deshalb leere Kaesten. renderResult uebernimmt Sichtbarkeit, Inhalt,
+  // die Vertiefungs-Offerte und den Sprung nach oben.
+  $("deepresult").hidden = true;
+  renderResult(lastResult || evaluate());
 });
 
 // Wiederholungs-Schutz: hat dieser Browser den Check schon gemacht, direkt das
