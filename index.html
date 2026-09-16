@@ -1333,6 +1333,12 @@ function buildPayload(r, event, token){
     consent_timestamp: new Date().toISOString(),
     page_url: location.href
   };
+  // Anrede fertig aufgeloest. Der Vorname ist kein Pflichtfeld, ein blosses
+  // "Hallo {firstname}," wuerde bei namenlosen Leads "Hallo ," ergeben.
+  const fn = $("f-first").value.trim();
+  fields["greeting"] = fn
+    ? (lang === "de" ? "Hallo " + fn + "," : "Hello " + fn + ",")
+    : (lang === "de" ? "Guten Tag," : "Hello,");
   // Aufgeloeste Texte, damit Make Report/Notiz ohne eigene Logik bauen kann
   fields["stage_desc"] = STAGES[lang][r.overallStage].desc;
   fields["stage_struct"] = STAGES[lang][r.overallStage].struct;
